@@ -11,12 +11,15 @@
 <p align="center">
   <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white">
   <img alt="PowerShell 5.1" src="https://img.shields.io/badge/PowerShell-5.1-5391FE?logo=powershell&logoColor=white">
-  <img alt="Version 3.7" src="https://img.shields.io/badge/version-3.7%20preview-2ea44f">
+  <img alt="Version 3.7.2" src="https://img.shields.io/badge/version-3.7.2-2ea44f">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
 ## Features
 
+- **Native `HypeTek-Bookmarker.exe` launcher** for simple double-click startup
+- Custom HypeTek application icon in Explorer, title bar and taskbar
+- No visible PowerShell console for normal startup
 - **One-click bookmark access** in your default browser
 - **Drag & Drop reordering** with persistent tile order
 - Add, edit and delete bookmark entries
@@ -28,7 +31,7 @@
 - Wallpaper modes: Fill, Fit and Stretch
 - Adjustable wallpaper dimming
 - **Bundled neon device icon set** for Server, PC, Laptop, Website, NAS, Router, Raspberry Pi, VM and Generic targets
-- Automatic icon detection or manual per-server icon selection
+- Automatic icon detection or manual per-entry icon selection
 - Saved address shown below each tile label
 - Icon-specific neon accent borders
 - Languages: **Deutsch, English, Русский**
@@ -37,21 +40,6 @@
 - Portable: no installer and no administrator rights required
 - **Subtle “Default design” reset** in Settings; it resets appearance only and never deletes bookmark entries
 
-## v3.6 preview behavior
-
-The new cyberpunk appearance is used automatically only when no `settings.json` exists yet.
-
-Existing installations keep their current wallpaper, colors and settings after updating. To switch an existing installation to the bundled appearance, open **Settings** and use the small **Default design** button, then click **Apply**.
-
-The reset affects only:
-
-- default button color
-- wallpaper
-- wallpaper mode
-- wallpaper dimming
-
-It does **not** change or delete saved bookmarks.
-
 ## Download
 
 Stable ready-to-use builds are published under **GitHub Releases**.
@@ -59,13 +47,18 @@ Stable ready-to-use builds are published under **GitHub Releases**.
 1. Open **Releases** on the right side of the repository page.
 2. Download the newest Windows ZIP.
 3. Extract the complete archive, including the `resources` folder.
-4. Start `Start_Bookmarker.vbs`.
+4. Double-click **`HypeTek-Bookmarker.exe`**.
 
-For troubleshooting, start `Start_Bookmarker.bat` instead. It keeps the console open if startup fails and the launcher can write details to `Error.txt`.
+For fallback or troubleshooting you can still use:
+
+- `Start_Bookmarker.vbs` — silent PowerShell-based fallback launcher
+- `Start_Bookmarker.bat` — troubleshooting launcher that keeps a console open
+
+The native EXE hosts the existing PowerShell application core in-process. A normal local PowerShell ExecutionPolicy such as `Restricted` therefore does not block the EXE startup. Enterprise application-control technologies such as AppLocker or WDAC are not bypassed.
 
 ## Usage
 
-1. Start the launcher.
+1. Start `HypeTek-Bookmarker.exe`.
 2. Click **Add entry**.
 3. Enter a label and address.
 4. Optionally choose an individual button color and icon.
@@ -84,17 +77,40 @@ desktop-njdiu99.hydra-wrasse.ts.net
 https://server.local:8443
 ```
 
+## Default appearance
+
+The bundled cyberpunk appearance is used automatically only when no `settings.json` exists yet.
+
+Existing installations keep their current wallpaper, colors and settings after updating. To switch an existing installation to the bundled appearance, open **Settings** and use the small **Default design** button, then click **Apply**.
+
+The reset affects only:
+
+- default button color
+- wallpaper
+- wallpaper mode
+- wallpaper dimming
+
+It does **not** change or delete saved bookmarks.
+
 ## Bundled resources
 
 The application ships with the visual resources required for the default appearance:
 
 ```text
 resources/
+├─ app.ico
+├─ default-wallpaper.png
 ├─ default-wallpaper.jpg
-└─ device-icons.png
+├─ header-logo.png
+├─ device-icons.png
+├─ wall-800-q42.jpg
+├─ wall-960-q45.jpg
+├─ wall-1024-q48.jpg
+├─ wall-1280-q55.jpg
+└─ icons/
 ```
 
-The launcher reads the bundled device symbols from one compact sprite sheet and falls back to Windows glyphs if the sprite cannot be loaded.
+The launcher reads bundled device symbols from the resource set and falls back to Windows glyphs if an icon cannot be loaded.
 
 ## Configuration & privacy
 
@@ -126,19 +142,21 @@ The project was renamed from **HypeTek Server Launcher** to **HypeTek Bookmarker
 ## Requirements
 
 - Windows 10 or Windows 11
-- Windows PowerShell 5.1
-- WPF / .NET components included with Windows
+- Windows PowerShell 5.1 components included with Windows
+- WPF / .NET Framework components included with Windows
 
-No additional runtime is required.
+No additional runtime is required on supported Windows installations.
 
 ## Repository files
 
 ```text
+HypeTek-Bookmarker.exe   Release package primary launcher (built by GitHub Actions)
 ServerLauncher.ps1       Main application core (legacy filename kept for compatibility)
-Start_Bookmarker.vbs     Recommended silent launcher
+Start_Bookmarker.vbs     Silent fallback launcher
 Start_Bookmarker.bat     Troubleshooting launcher
-Start_ServerLauncher.*   Compatibility launchers for existing installations
-resources/               Bundled wallpaper and device icons
+resources/               Bundled wallpaper, app icon and device icons
+src/BookmarkerLauncher.cs Native EXE launcher source
+.github/workflows/       Reproducible Windows EXE build workflow
 docs/                    README screenshots
 README.md                Project documentation
 CHANGELOG.md             Version history
@@ -148,25 +166,24 @@ LICENSE                  MIT License
 
 ## Version
 
-Stable release: **v3.6**  
-Next release / rebrand: **v3.7 HypeTek Bookmarker**
+Stable release: **v3.7.2 HypeTek Bookmarker**
 
-### v3.7 rebrand highlights
+### v3.7.2 highlights
 
-- Bundled cyberpunk default wallpaper
-- Bundled neon icon set instead of emoji-only presentation
-- Tile addresses displayed in the main UI
-- Neon accent borders based on device type
-- Non-intrusive “Default design” reset
-- Existing installations keep their settings during an update
+- Native `HypeTek-Bookmarker.exe` as the normal user-facing launcher
+- HypeTek application icon in Explorer, window chrome and taskbar
+- No visible PowerShell console during normal startup
+- EXE startup works even when the ordinary local Windows PowerShell script ExecutionPolicy is disabled/restricted
+- Existing PowerShell application core, settings and bookmark data remain compatible
+- VBS and BAT launchers retained as fallback/troubleshooting options
 
 ## Deutsch
 
 Der **HypeTek Bookmarker** ist ein portabler Windows-Bookmarker für Weboberflächen, NAS, Server, PCs und andere Netzwerkziele.
 
-Ab v3.6 bringt eine frische Installation bereits das HypeTek-Cyberpunk-Wallpaper und passende Gerätesymbole mit. Bestehende Konfigurationen werden beim Update **nicht überschrieben**. Wer das neue Standarddesign übernehmen möchte, kann es in den Einstellungen über den kleinen Button **Standarddesign** laden.
+Ab **v3.7.2** startet die Anwendung für normale Nutzer bequem über **`HypeTek-Bookmarker.exe`**. Das eigene HypeTek-Logo erscheint dabei als Anwendungsicon, und beim normalen Start wird kein PowerShell-Konsolenfenster angezeigt. Die bisherigen VBS-/BAT-Starter bleiben als Fallback und für die Fehlersuche erhalten.
 
-Der Design-Reset verändert ausschließlich Darstellungseinstellungen und löscht keine Einträge.
+Eine frische Installation bringt bereits das HypeTek-Cyberpunk-Wallpaper und passende Gerätesymbole mit. Bestehende Konfigurationen werden beim Update **nicht überschrieben**. Der Design-Reset verändert ausschließlich Darstellungseinstellungen und löscht keine Einträge.
 
 ## License
 
