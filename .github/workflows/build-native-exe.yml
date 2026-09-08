@@ -8,19 +8,24 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build HypeTek Bookmarker EXE
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          $automation = "$env:WINDIR\System32\WindowsPowerShell\v1.0\System.Management.Automation.dll"
           if (-not (Test-Path $csc)) { throw "csc.exe not found: $csc" }
-          if (-not (Test-Path $automation)) { throw "System.Management.Automation.dll not found: $automation" }
+
+          $automation = Get-ChildItem "$env:WINDIR\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation" -Recurse -Filter System.Management.Automation.dll -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $automation) {
+            $automation = Get-ChildItem "$env:WINDIR\assembly\GAC_MSIL\System.Management.Automation" -Recurse -Filter System.Management.Automation.dll -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $automation) { throw "Windows PowerShell System.Management.Automation.dll not found in the GAC" }
+          Write-Host "Using System.Management.Automation: $automation"
 
           & $csc /nologo /target:winexe /platform:anycpu /optimize+ `
             /win32icon:resources\app.ico `
