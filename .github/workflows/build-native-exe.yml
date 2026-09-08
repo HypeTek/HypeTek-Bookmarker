@@ -1,0 +1,42 @@
+name: Build native EXE launcher
+
+on:
+  push:
+    branches:
+      - feature/native-exe-launcher
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build HypeTek Bookmarker EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          $automation = "$env:WINDIR\System32\WindowsPowerShell\v1.0\System.Management.Automation.dll"
+          if (-not (Test-Path $csc)) { throw "csc.exe not found: $csc" }
+          if (-not (Test-Path $automation)) { throw "System.Management.Automation.dll not found: $automation" }
+
+          & $csc /nologo /target:winexe /platform:anycpu /optimize+ `
+            /win32icon:resources\app.ico `
+            /out:dist\HypeTek-Bookmarker.exe `
+            /reference:System.dll `
+            /reference:System.Core.dll `
+            /reference:System.Windows.Forms.dll `
+            /reference:"$automation" `
+            src\BookmarkerLauncher.cs
+
+          if ($LASTEXITCODE -ne 0) { throw "C# compiler failed with exit code $LASTEXITCODE" }
+          Get-Item dist\HypeTek-Bookmarker.exe | Format-List Name,Length,LastWriteTime
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: HypeTek-Bookmarker-native-launcher
+          path: dist/HypeTek-Bookmarker.exe
+          if-no-files-found: error
