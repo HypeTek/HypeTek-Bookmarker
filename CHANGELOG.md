@@ -2,7 +2,34 @@
 
 All notable changes to **HypeTek Bookmarker** (formerly HypeTek Server Launcher) are documented here.
 
-## [3.7] - Preview
+## [3.7.2] - 2026-09-09
+
+### Added
+- Native `HypeTek-Bookmarker.exe` launcher as the primary user-facing start method.
+- Custom HypeTek application icon for Explorer, title bar and taskbar.
+- Reproducible Windows EXE build workflow under `.github/workflows/`.
+- Native launcher source under `src/BookmarkerLauncher.cs`.
+
+### Changed
+- Normal startup no longer opens a visible PowerShell console window.
+- The EXE hosts the existing PowerShell application core in-process instead of launching `powershell.exe` as the visible application.
+- Local Windows PowerShell ExecutionPolicy settings such as `Restricted` no longer block normal EXE startup.
+- `Start_Bookmarker.vbs` and `Start_Bookmarker.bat` remain available as fallback and troubleshooting launchers.
+
+### Compatibility / safety
+- Existing `servers.json`, `settings.json` and `%LOCALAPPDATA%\HypeTek\ServerLauncher` data remain compatible.
+- The internal `ServerLauncher.ps1` filename is retained.
+- Enterprise controls such as AppLocker or WDAC are not bypassed.
+- No administrator rights are required.
+
+## [3.7.1] - 2026-09-08
+
+### Changed
+- Updated the bundled default cyberpunk wallpaper.
+- Removed the duplicate HypeTek text embedded in the background artwork.
+- Rebuilt all bundled wallpaper size variants from the updated artwork.
+
+## [3.7] - 2026-09-08
 
 ### Rebrand
 - Product renamed from **HypeTek Server Launcher** to **HypeTek Bookmarker**.
@@ -14,7 +41,6 @@ All notable changes to **HypeTek Bookmarker** (formerly HypeTek Server Launcher)
 - Existing `servers.json` and `settings.json` files remain compatible.
 - `%LOCALAPPDATA%\HypeTek\ServerLauncher` is intentionally retained so existing installations keep their configuration.
 - `ServerLauncher.ps1` remains the internal core filename for this transition release.
-- Existing `Start_ServerLauncher.vbs` and `.bat` launchers remain functional.
 - No automatic migration or deletion of saved entries is performed.
 
 ## [3.6] - 2026-09-08
