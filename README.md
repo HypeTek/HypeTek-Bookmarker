@@ -19,7 +19,6 @@
   <a href="../../releases/latest"><img alt="Download latest Windows release" src="https://img.shields.io/badge/Download-Latest%20Windows%20Release-2ea44f?style=for-the-badge&logo=github"></a>
 </p>
 
-
 ## Features
 
 - **One-click server access** in your default browser
@@ -39,6 +38,18 @@
 - Compact for 1–3 servers, expands up to 9 and then becomes scrollable
 - Right-click a server tile to edit or delete it
 - Portable: no installer and no administrator rights required
+
+## Next appearance update
+
+The `feature/default-cyber-theme` branch adds a first-run HypeTek default appearance without overwriting existing user settings.
+
+- New installations automatically receive a dark cyberpunk background.
+- The default tile color is tuned to the new background.
+- A small bundled icon asset set is generated locally for Server, PC, Laptop, Website, NAS, Router, Raspberry Pi, VM and Generic device types.
+- Existing `settings.json`, custom wallpapers, colors and server entries are preserved.
+- The reset helper is intentionally unobtrusive under `tools/Reset_Default_Appearance.vbs`. It resets only the appearance; server entries and their order are never deleted.
+
+The default assets are generated locally on first start by `Start_ServerLauncher.ps1`, so the repository does not need to ship a large binary wallpaper package and the launcher stays portable.
 
 ## Download
 
@@ -108,14 +119,16 @@ assets/
 Error.txt
 ```
 
-These files are intentionally excluded from the Git repository so personal server addresses and wallpapers are not accidentally published.
+These files are intentionally excluded from the Git repository so personal server addresses and custom wallpapers are not accidentally published.
 
 ## Repository files
 
 ```text
 ServerLauncher.ps1       Main application
+Start_ServerLauncher.ps1 First-run/default-theme bootstrap
 Start_ServerLauncher.vbs Recommended silent launcher
 Start_ServerLauncher.bat Troubleshooting launcher
+tools/                   Optional maintenance helpers
 README.md                Project documentation
 CHANGELOG.md             Version history
 SECURITY.md              Security information
@@ -134,15 +147,13 @@ Current release: **v3.5**
 - Additional Router, Raspberry Pi and VM icons
 - Existing v3.4.x icon assignments remain compatible
 
-
-
-
-
 ## Deutsch
 
-Der **HypeTek Server Launcher** ist ein portabler Windows-Launcher für Weboberflächen und Serveradressen. Servername, Adresse, Port und Buttonfarbe sind frei konfigurierbar. Per **Drag & Drop** kannst du die Server-Kacheln in die gewünschte Reihenfolge ziehen; diese Reihenfolge wird automatisch gespeichert. Das Symbol einer Kachel kannst du jetzt außerdem **manuell pro Eintrag festlegen** oder weiterhin automatisch erkennen lassen.
+Der **HypeTek Server Launcher** ist ein portabler Windows-Launcher für Weboberflächen und Serveradressen. Servername, Adresse, Port und Buttonfarbe sind frei konfigurierbar. Per **Drag & Drop** kannst du die Server-Kacheln in die gewünschte Reihenfolge ziehen; diese Reihenfolge wird automatisch gespeichert. Das Symbol einer Kachel kannst du außerdem **manuell pro Eintrag festlegen** oder automatisch erkennen lassen.
 
-Es werden nur tatsächlich angelegte Server angezeigt. Hintergrundbild, Abdunklung und Sprache lassen sich über das Zahnrad einstellen.
+Der neue Default-Theme-Stand auf dem Feature-Branch erzeugt beim ersten Start automatisch ein dunkles HypeTek-Cyberpunk-Design. Bereits vorhandene Einstellungen werden dabei nicht überschrieben. Wer nur die Optik zurücksetzen möchte, findet den bewusst unauffälligen Helfer unter `tools/Reset_Default_Appearance.vbs`; Servereinträge bleiben dabei erhalten.
+
+Es werden nur tatsächlich angelegte Server angezeigt. Hintergrundbild, Abdunklung und Sprache lassen sich weiterhin über das Zahnrad einstellen.
 
 ## License
 
