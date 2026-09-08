@@ -1,4 +1,4 @@
-﻿# HypeTek Server Launcher V3.5
+﻿# HypeTek Server Launcher V3.6
 # Windows 10/11 - Windows PowerShell 5.1 - WPF
 
 Add-Type -AssemblyName PresentationFramework
@@ -9,6 +9,8 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $script:BaseDir = $PSScriptRoot
+$script:BundledAssetsDir = Join-Path $script:BaseDir 'resources'
+$script:DefaultWallpaperToken = '@default'
 
 # Use the program folder while it is writable (portable mode). If the launcher
 # is placed in a protected location such as C:\Program Files, store user data
@@ -60,12 +62,13 @@ $script:GearButton = $null
 $script:HintText = $null
 $script:EmptyText = $null
 $script:ServerButtonStyle = $null
+$script:IconSprite = $null
 $script:DragStartPoint = New-Object System.Windows.Point 0,0
 $script:LastDragEnd = [datetime]::MinValue
 
 $script:Translations = @{
     de = @{
-        Title='SERVER LAUNCHER'; Subtitle='Serveradressen mit einem Klick öffnen'; Add='Server hinzufügen';
+        Title='HypeTek Server Launcher'; Subtitle='Serveradressen mit einem Klick öffnen'; Add='Server hinzufügen';
         Settings='Einstellungen'; Name='Buttonbeschriftung'; Address='Serveradresse'; Color='Buttonfarbe';
         Default='Standard'; Save='Speichern'; Cancel='Abbrechen'; Edit='Bearbeiten'; Delete='Löschen';
         DeleteConfirm='Diesen Server wirklich löschen?'; Language='Sprache'; DefaultColor='Standard-Buttonfarbe';
@@ -76,11 +79,11 @@ $script:Translations = @{
         NewServer='Neuer Server'; EditServer='Server bearbeiten'; Error='Fehler';
         Hint='Drag & Drop: Reihenfolge ändern  •  Rechtsklick: Bearbeiten oder Löschen'; BackgroundNone='Kein Hintergrundbild ausgewählt';
         BackgroundMode='Bildanpassung'; ModeCover='Ausfüllen'; ModeFit='Einpassen'; ModeStretch='Strecken';
-        BackgroundDim='Hintergrund abdunkeln'; Percent='%';
+        BackgroundDim='Hintergrund abdunkeln'; Percent='%'; DefaultWallpaper='HypeTek Standard-Wallpaper'; ResetDesign='Standarddesign'; ResetDesignHint='Setzt nur Farben, Wallpaper und Darstellung zurück – Server bleiben unverändert.';
         ColorChoose='Farbe wählen'; AddressExample='z. B. 192.168.1.10 oder https://server.local:8443'; Icon='Symbol'; IconAuto='Automatisch'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualisierung'; IconGeneric='Allgemein'
     }
     en = @{
-        Title='SERVER LAUNCHER'; Subtitle='Open server addresses with one click'; Add='Add server';
+        Title='HypeTek Server Launcher'; Subtitle='Open server addresses with one click'; Add='Add server';
         Settings='Settings'; Name='Button label'; Address='Server address'; Color='Button color';
         Default='Default'; Save='Save'; Cancel='Cancel'; Edit='Edit'; Delete='Delete';
         DeleteConfirm='Really delete this server?'; Language='Language'; DefaultColor='Default button color';
@@ -91,11 +94,11 @@ $script:Translations = @{
         NewServer='New server'; EditServer='Edit server'; Error='Error';
         Hint='Drag & drop: reorder servers  •  Right-click: edit or delete'; BackgroundNone='No background image selected';
         BackgroundMode='Image scaling'; ModeCover='Fill'; ModeFit='Fit'; ModeStretch='Stretch';
-        BackgroundDim='Darken background'; Percent='%';
+        BackgroundDim='Darken background'; Percent='%'; DefaultWallpaper='HypeTek default wallpaper'; ResetDesign='Default design'; ResetDesignHint='Resets only colors, wallpaper and appearance – server entries stay unchanged.';
         ColorChoose='Choose color'; AddressExample='e.g. 192.168.1.10 or https://server.local:8443'; Icon='Icon'; IconAuto='Automatic'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualization'; IconGeneric='Generic'
     }
     ru = @{
-        Title='ЗАПУСК СЕРВЕРОВ'; Subtitle='Открывайте адреса серверов одним нажатием'; Add='Добавить сервер';
+        Title='HypeTek Server Launcher'; Subtitle='Открывайте адреса серверов одним нажатием'; Add='Добавить сервер';
         Settings='Настройки'; Name='Название кнопки'; Address='Адрес сервера'; Color='Цвет кнопки';
         Default='По умолчанию'; Save='Сохранить'; Cancel='Отмена'; Edit='Изменить'; Delete='Удалить';
         DeleteConfirm='Удалить этот сервер?'; Language='Язык'; DefaultColor='Цвет кнопок по умолчанию';
@@ -106,7 +109,7 @@ $script:Translations = @{
         NewServer='Новый сервер'; EditServer='Изменить сервер'; Error='Ошибка';
         Hint='Drag & Drop: изменить порядок  •  Правый клик: изменить или удалить'; BackgroundNone='Фоновое изображение не выбрано';
         BackgroundMode='Масштаб изображения'; ModeCover='Заполнить'; ModeFit='Вписать'; ModeStretch='Растянуть';
-        BackgroundDim='Затемнение фона'; Percent='%';
+        BackgroundDim='Затемнение фона'; Percent='%'; DefaultWallpaper='Стандартные обои HypeTek'; ResetDesign='Стандартный дизайн'; ResetDesignHint='Сбрасывает только цвета, обои и оформление – серверы не изменяются.';
         ColorChoose='Выбрать цвет'; AddressExample='например 192.168.1.10 или https://server.local:8443'; Icon='Символ'; IconAuto='Автоматически'; IconServer='Сервер'; IconPC='ПК'; IconLaptop='Ноутбук'; IconWebsite='Веб-сайт'; IconNAS='NAS'; IconRouter='Роутер'; IconRaspberry='Raspberry Pi'; IconVM='VM / виртуализация'; IconGeneric='Общее'
     }
 }
@@ -137,7 +140,7 @@ function Ensure-Data {
     if (-not (Test-Path -LiteralPath $script:AssetsDir)) { [void](New-Item -ItemType Directory -Path $script:AssetsDir -Force) }
     if (-not (Test-Path -LiteralPath $script:ServersFile)) { Write-Utf8Bom $script:ServersFile '[]' }
     if (-not (Test-Path -LiteralPath $script:SettingsFile)) {
-        $default=[ordered]@{ Language='de'; DefaultButtonColor='#2F80C1'; BackgroundImage=''; BackgroundMode='Cover'; BackgroundDim=45 }
+        $default=[ordered]@{ Language='de'; DefaultButtonColor='#163A52'; BackgroundImage=$script:DefaultWallpaperToken; BackgroundMode='Cover'; BackgroundDim=28 }
         Write-Utf8Bom $script:SettingsFile ($default | ConvertTo-Json)
     }
 }
@@ -153,7 +156,7 @@ function Load-Data {
         $script:Settings=(Get-Content -LiteralPath $script:SettingsFile -Raw -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop
     } catch {
         Write-LauncherError $_
-        $script:Settings=[pscustomobject]@{ Language='de'; DefaultButtonColor='#2F80C1'; BackgroundImage=''; BackgroundMode='Cover'; BackgroundDim=45 }
+        $script:Settings=[pscustomobject]@{ Language='de'; DefaultButtonColor='#163A52'; BackgroundImage=$script:DefaultWallpaperToken; BackgroundMode='Cover'; BackgroundDim=28 }
     }
     if (-not $script:Settings.PSObject.Properties['Language']) { $script:Settings | Add-Member -NotePropertyName Language -NotePropertyValue 'de' -Force }
     if (-not $script:Settings.PSObject.Properties['DefaultButtonColor']) { $script:Settings | Add-Member -NotePropertyName DefaultButtonColor -NotePropertyValue '#2F80C1' -Force }
@@ -188,35 +191,95 @@ function Open-ServerAddress {
 
 function Get-ServerSymbol {
     param([string]$Name,[string]$Address,[string]$Icon='Auto')
-    switch([string]$Icon){
-        'Server'    { return [pscustomobject]@{ Glyph='🖧'; Font='Segoe UI Emoji' } }
-        'PC'        { return [pscustomobject]@{ Glyph='🖥'; Font='Segoe UI Emoji' } }
-        'Laptop'    { return [pscustomobject]@{ Glyph='💻'; Font='Segoe UI Emoji' } }
-        'Website'   { return [pscustomobject]@{ Glyph='🌐'; Font='Segoe UI Emoji' } }
-        'NAS'       { return [pscustomobject]@{ Glyph='🗄'; Font='Segoe UI Emoji' } }
-        'Router'    { return [pscustomobject]@{ Glyph='📡'; Font='Segoe UI Emoji' } }
-        'Raspberry' { return [pscustomobject]@{ Glyph='🍓'; Font='Segoe UI Emoji' } }
-        'VM'        { return [pscustomobject]@{ Glyph='⬡'; Font='Segoe UI Symbol' } }
-        'Generic'   { return [pscustomobject]@{ Glyph='🔗'; Font='Segoe UI Emoji' } }
-        # Compatibility with icon values written by v3.4.x
-        'Storage'   { return [pscustomobject]@{ Glyph='🗄'; Font='Segoe UI Emoji' } }
-        'Security'  { return [pscustomobject]@{ Glyph='📡'; Font='Segoe UI Emoji' } }
-        'Web'       { return [pscustomobject]@{ Glyph='🌐'; Font='Segoe UI Emoji' } }
+
+    function New-SymbolResult {
+        param([string]$Key,[string]$Glyph,[string]$Font='Segoe UI Emoji')
+        return [pscustomobject]@{ IconKey=$Key; Glyph=$Glyph; Font=$Font }
     }
 
-    # Automatic mode stays available for existing users, but manual selection
-    # is the intended option when an exact device type is known.
+    switch([string]$Icon){
+        'Server'    { return New-SymbolResult 'server' '🖧' }
+        'PC'        { return New-SymbolResult 'pc' '🖥' }
+        'Laptop'    { return New-SymbolResult 'laptop' '💻' }
+        'Website'   { return New-SymbolResult 'website' '🌐' }
+        'NAS'       { return New-SymbolResult 'nas' '🗄' }
+        'Router'    { return New-SymbolResult 'router' '📡' }
+        'Raspberry' { return New-SymbolResult 'raspberry' '🍓' }
+        'VM'        { return New-SymbolResult 'vm' '⬡' 'Segoe UI Symbol' }
+        'Generic'   { return New-SymbolResult 'generic' '🔗' }
+        # Compatibility with icon values written by v3.4.x
+        'Storage'   { return New-SymbolResult 'nas' '🗄' }
+        'Security'  { return New-SymbolResult 'router' '📡' }
+        'Web'       { return New-SymbolResult 'website' '🌐' }
+    }
+
+    # Automatic mode: resolve a matching bundled icon while keeping the old
+    # emoji glyph as a safe fallback if an asset is missing.
     $text=((([string]$Name)+' '+([string]$Address)).ToLowerInvariant())
-    if($text -match 'rasp|raspberry|pi-hole|pihole'){ return [pscustomobject]@{ Glyph='🍓'; Font='Segoe UI Emoji' } }
-    elseif($text -match 'nas|truenas|synology|qnap|storage'){ return [pscustomobject]@{ Glyph='🗄'; Font='Segoe UI Emoji' } }
-    elseif($text -match 'laptop|notebook'){ return [pscustomobject]@{ Glyph='💻'; Font='Segoe UI Emoji' } }
-    elseif($text -match 'desktop|workstation|\bpc\b'){ return [pscustomobject]@{ Glyph='🖥'; Font='Segoe UI Emoji' } }
-    elseif($text -match 'proxmox|hyper-v|esxi|vmware|vcenter|virtual|\bvm\b|commander'){ return [pscustomobject]@{ Glyph='⬡'; Font='Segoe UI Symbol' } }
-    elseif($text -match 'router|gateway|firewall|vpn|opnsense|pfsense'){ return [pscustomobject]@{ Glyph='📡'; Font='Segoe UI Emoji' } }
-    elseif($text -match 'www\.|website|web|nginx|apache|http'){ return [pscustomobject]@{ Glyph='🌐'; Font='Segoe UI Emoji' } }
-    elseif($text -match 'server'){ return [pscustomobject]@{ Glyph='🖧'; Font='Segoe UI Emoji' } }
-    else { return [pscustomobject]@{ Glyph='🔗'; Font='Segoe UI Emoji' } }
+    if($text -match 'rasp|raspberry|pi-hole|pihole'){ return New-SymbolResult 'raspberry' '🍓' }
+    elseif($text -match 'nas|truenas|synology|qnap|storage'){ return New-SymbolResult 'nas' '🗄' }
+    elseif($text -match 'laptop|notebook'){ return New-SymbolResult 'laptop' '💻' }
+    elseif($text -match 'desktop|workstation|\bpc\b'){ return New-SymbolResult 'pc' '🖥' }
+    elseif($text -match 'proxmox|hyper-v|esxi|vmware|vcenter|virtual|\bvm\b|commander'){ return New-SymbolResult 'vm' '⬡' 'Segoe UI Symbol' }
+    elseif($text -match 'router|gateway|firewall|vpn|opnsense|pfsense'){ return New-SymbolResult 'router' '📡' }
+    elseif($text -match 'www\.|website|web|nginx|apache|http'){ return New-SymbolResult 'website' '🌐' }
+    elseif($text -match 'server'){ return New-SymbolResult 'server' '🖧' }
+    else { return New-SymbolResult 'generic' '🔗' }
 }
+
+function Get-ServerAccentColor {
+    param([string]$Name,[string]$Address,[string]$Icon='Auto')
+    $symbol=Get-ServerSymbol -Name $Name -Address $Address -Icon $Icon
+    switch([string]$symbol.IconKey){
+        'nas'       { return '#FF962E' }
+        'vm'        { return '#B06CFF' }
+        'router'    { return '#35E6A6' }
+        'raspberry' { return '#FF5B9E' }
+        'website'   { return '#34B7FF' }
+        default     { return '#00D9FF' }
+    }
+}
+
+function Get-BundledIconSource {
+    param([string]$IconKey)
+    try{
+        if($null -eq $script:IconSprite){
+            $spritePath=Join-Path $script:BundledAssetsDir 'device-icons.png'
+            if(-not(Test-Path -LiteralPath $spritePath)){return $null}
+            $bi=New-Object System.Windows.Media.Imaging.BitmapImage
+            $bi.BeginInit()
+            $bi.CacheOption='OnLoad'
+            $bi.UriSource=New-Object System.Uri -ArgumentList $spritePath
+            $bi.EndInit()
+            $bi.Freeze()
+            $script:IconSprite=$bi
+        }
+
+        $index=9
+        switch([string]$IconKey){
+            'auto'      {$index=0}
+            'server'    {$index=1}
+            'pc'        {$index=2}
+            'laptop'    {$index=3}
+            'website'   {$index=4}
+            'nas'       {$index=5}
+            'router'    {$index=6}
+            'raspberry' {$index=7}
+            'vm'        {$index=8}
+            'generic'   {$index=9}
+        }
+        $x=($index % 5)*128
+        $y=[int]([Math]::Floor($index / 5)*128)
+        $rect=New-Object System.Windows.Int32Rect -ArgumentList $x,$y,128,128
+        $crop=New-Object System.Windows.Media.Imaging.CroppedBitmap -ArgumentList $script:IconSprite,$rect
+        $crop.Freeze()
+        return $crop
+    }catch{
+        Write-LauncherError $_
+        return $null
+    }
+}
+
 function New-ServerTileContent {
     param([string]$Name,[string]$Address,[string]$Icon='Auto')
     $symbol=Get-ServerSymbol -Name $Name -Address $Address -Icon $Icon
@@ -225,28 +288,53 @@ function New-ServerTileContent {
     $stack.HorizontalAlignment='Center'
     $stack.VerticalAlignment='Center'
 
-    # Important: PowerShell variable names are case-insensitive. $Icon is a typed
-    # function parameter, so the visual TextBlock must use a different variable name.
-    $iconText=New-Object System.Windows.Controls.TextBlock
-    $iconText.Text=[string]$symbol.Glyph
-    $iconText.FontFamily=[string]$symbol.Font
-    $iconText.FontSize=24
-    $iconText.HorizontalAlignment='Center'
-    $iconText.TextAlignment='Center'
-    $iconText.Margin='0,0,0,4'
+    $visualAdded=$false
+    $bundledIcon=Get-BundledIconSource -IconKey ([string]$symbol.IconKey)
+    if($null -ne $bundledIcon){
+        $iconImage=New-Object System.Windows.Controls.Image
+        $iconImage.Source=$bundledIcon
+        $iconImage.Width=34
+        $iconImage.Height=34
+        $iconImage.Stretch='Uniform'
+        $iconImage.HorizontalAlignment='Center'
+        $iconImage.Margin='0,0,0,3'
+        [void]$stack.Children.Add($iconImage)
+        $visualAdded=$true
+    }
+
+    if(-not $visualAdded){
+        $iconText=New-Object System.Windows.Controls.TextBlock
+        $iconText.Text=[string]$symbol.Glyph
+        $iconText.FontFamily=[string]$symbol.Font
+        $iconText.FontSize=24
+        $iconText.HorizontalAlignment='Center'
+        $iconText.TextAlignment='Center'
+        $iconText.Margin='0,0,0,4'
+        [void]$stack.Children.Add($iconText)
+    }
 
     $label=New-Object System.Windows.Controls.TextBlock
     $label.Text=[string]$Name
     $label.Foreground=[System.Windows.Media.Brushes]::White
-    $label.FontSize=15
+    $label.FontSize=14.5
     $label.FontWeight='SemiBold'
     $label.TextAlignment='Center'
     $label.TextWrapping='Wrap'
-    $label.MaxWidth=185
+    $label.MaxWidth=190
     $label.HorizontalAlignment='Center'
-
-    [void]$stack.Children.Add($iconText)
     [void]$stack.Children.Add($label)
+
+    $addressText=New-Object System.Windows.Controls.TextBlock
+    $addressText.Text=[string]$Address
+    $addressText.Foreground=Get-Brush '#BFEFFF'
+    $addressText.FontSize=10.5
+    $addressText.TextAlignment='Center'
+    $addressText.TextTrimming='CharacterEllipsis'
+    $addressText.MaxWidth=195
+    $addressText.HorizontalAlignment='Center'
+    $addressText.Margin='0,2,0,0'
+    [void]$stack.Children.Add($addressText)
+
     return $stack
 }
 
@@ -428,7 +516,7 @@ function Show-ServerDialog {
     [System.Windows.Controls.Grid]::SetRow($buttons,1)
     [void]$root.Children.Add($buttons)
 
-    $saveBtn=New-FlatButton (Get-T 'Save') 110 '#2F80C1'
+    $saveBtn=New-FlatButton (Get-T 'Save') 110 '#008DF3'
     $saveBtn.Height=38
     $cancelBtn=New-FlatButton (Get-T 'Cancel') 110 '#353A45'
     $cancelBtn.Height=38
@@ -478,7 +566,7 @@ function Test-ImageFile {
 }
 
 function Show-SettingsDialog {
-    $dlg=New-DialogWindow (Get-T 'AppSettings') 600 560
+    $dlg=New-DialogWindow (Get-T 'AppSettings') 600 575
     $grid=New-Object System.Windows.Controls.Grid; $grid.Margin='24'; $dlg.Content=$grid
     for($i=0;$i -lt 12;$i++){ $r=New-Object System.Windows.Controls.RowDefinition; $r.Height='Auto'; [void]$grid.RowDefinitions.Add($r) }
 
@@ -499,7 +587,7 @@ function Show-SettingsDialog {
     $lblBg=New-Object System.Windows.Controls.TextBlock; $lblBg.Text=Get-T 'Background'; [System.Windows.Controls.Grid]::SetRow($lblBg,4); [void]$grid.Children.Add($lblBg)
     $bgRow=New-Object System.Windows.Controls.Grid; $bgRow.Margin='0,5,0,16';
     $c1=New-Object System.Windows.Controls.ColumnDefinition; $c1.Width='*'; $c2=New-Object System.Windows.Controls.ColumnDefinition; $c2.Width='Auto'; $c3=New-Object System.Windows.Controls.ColumnDefinition; $c3.Width='Auto'; [void]$bgRow.ColumnDefinitions.Add($c1);[void]$bgRow.ColumnDefinitions.Add($c2);[void]$bgRow.ColumnDefinitions.Add($c3)
-    $bgText=New-TextBox; $bgText.IsReadOnly=$true; $bgText.Tag=[string]$script:Settings.BackgroundImage; $bgText.Text=if([string]::IsNullOrWhiteSpace([string]$bgText.Tag)){Get-T 'BackgroundNone'}else{[string]$bgText.Tag}; [System.Windows.Controls.Grid]::SetColumn($bgText,0); [void]$bgRow.Children.Add($bgText)
+    $bgText=New-TextBox; $bgText.IsReadOnly=$true; $bgText.Tag=[string]$script:Settings.BackgroundImage; $bgText.Text=if([string]::IsNullOrWhiteSpace([string]$bgText.Tag)){Get-T 'BackgroundNone'}elseif([string]$bgText.Tag -eq $script:DefaultWallpaperToken){Get-T 'DefaultWallpaper'}else{[string]$bgText.Tag}; [System.Windows.Controls.Grid]::SetColumn($bgText,0); [void]$bgRow.Children.Add($bgText)
     $choose=New-FlatButton (Get-T 'Choose') 90 '#353A45'; [System.Windows.Controls.Grid]::SetColumn($choose,1); [void]$bgRow.Children.Add($choose)
     $remove=New-FlatButton (Get-T 'Remove') 90 '#353A45'; [System.Windows.Controls.Grid]::SetColumn($remove,2); [void]$bgRow.Children.Add($remove)
     [System.Windows.Controls.Grid]::SetRow($bgRow,5); [void]$grid.Children.Add($bgRow)
@@ -527,7 +615,16 @@ function Show-SettingsDialog {
     $slider=New-Object System.Windows.Controls.Slider;$slider.Minimum=0;$slider.Maximum=80;$slider.TickFrequency=5;$slider.Value=[double]$script:Settings.BackgroundDim;$slider.Margin='10,0';[System.Windows.Controls.Grid]::SetColumn($slider,1);[void]$dimGrid.Children.Add($slider)
     $dimVal=New-Object System.Windows.Controls.TextBlock;$dimVal.Text=([int]$slider.Value).ToString()+' %';$dimVal.VerticalAlignment='Center';$dimVal.HorizontalAlignment='Right';[System.Windows.Controls.Grid]::SetColumn($dimVal,2);[void]$dimGrid.Children.Add($dimVal);$slider.Add_ValueChanged({$dimVal.Text=([int]$slider.Value).ToString()+' %'});[System.Windows.Controls.Grid]::SetRow($dimGrid,7);[void]$grid.Children.Add($dimGrid)
 
-    $buttons=New-Object System.Windows.Controls.StackPanel;$buttons.Orientation='Horizontal';$buttons.HorizontalAlignment='Right';$buttons.Margin='0,16,0,0';$apply=New-FlatButton (Get-T 'Apply') 110 '#2F80C1';$cancel=New-FlatButton (Get-T 'Cancel') 110 '#353A45';[void]$buttons.Children.Add($apply);[void]$buttons.Children.Add($cancel);[System.Windows.Controls.Grid]::SetRow($buttons,9);[void]$grid.Children.Add($buttons)
+    $buttonGrid=New-Object System.Windows.Controls.Grid;$buttonGrid.Margin='0,16,0,0'
+    $bc1=New-Object System.Windows.Controls.ColumnDefinition;$bc1.Width='*';$bc2=New-Object System.Windows.Controls.ColumnDefinition;$bc2.Width='Auto';[void]$buttonGrid.ColumnDefinitions.Add($bc1);[void]$buttonGrid.ColumnDefinitions.Add($bc2)
+    $reset=New-FlatButton ('↺  '+(Get-T 'ResetDesign')) 165 '#252A33';$reset.Height=30;$reset.FontSize=11;$reset.Opacity=0.72;$reset.HorizontalAlignment='Left';$reset.Margin='0';$reset.ToolTip=Get-T 'ResetDesignHint';[System.Windows.Controls.Grid]::SetColumn($reset,0);[void]$buttonGrid.Children.Add($reset)
+    $buttons=New-Object System.Windows.Controls.StackPanel;$buttons.Orientation='Horizontal';$buttons.HorizontalAlignment='Right';$apply=New-FlatButton (Get-T 'Apply') 110 '#008DF3';$cancel=New-FlatButton (Get-T 'Cancel') 110 '#353A45';[void]$buttons.Children.Add($apply);[void]$buttons.Children.Add($cancel);[System.Windows.Controls.Grid]::SetColumn($buttons,1);[void]$buttonGrid.Children.Add($buttons);[System.Windows.Controls.Grid]::SetRow($buttonGrid,9);[void]$grid.Children.Add($buttonGrid)
+    $reset.Add_Click({
+        $defColor.Tag='#163A52';$defColor.Background=Get-Brush '#163A52'
+        $bgText.Tag=$script:DefaultWallpaperToken;$bgText.Text=Get-T 'DefaultWallpaper'
+        $cmbMode.SelectedIndex=0
+        $slider.Value=28
+    })
     $cancel.Add_Click({$dlg.DialogResult=$false;$dlg.Close()})
     $apply.Add_Click({
         $lang='de';if($cmbLang.SelectedIndex -eq 1){$lang='en'}elseif($cmbLang.SelectedIndex -eq 2){$lang='ru'}
@@ -543,7 +640,11 @@ function Apply-Background {
     $script:BackgroundImageControl.Source=$null
     $bg=[string]$script:Settings.BackgroundImage
     if(-not [string]::IsNullOrWhiteSpace($bg)){
-        $path=Join-Path $script:DataDir $bg
+        if($bg -eq $script:DefaultWallpaperToken){
+            $path=Join-Path $script:BundledAssetsDir 'default-wallpaper.jpg'
+        }else{
+            $path=Join-Path $script:DataDir $bg
+        }
         if(Test-Path -LiteralPath $path){
             try{
                 $bi=New-Object System.Windows.Media.Imaging.BitmapImage;$bi.BeginInit();$bi.CacheOption='OnLoad';$bi.UriSource=New-Object System.Uri -ArgumentList $path;$bi.EndInit();$bi.Freeze();$script:BackgroundImageControl.Source=$bi
@@ -565,7 +666,7 @@ function Apply-Language {
 function Update-WindowHeight {
     if(-not $script:Window){return}
     $count=[Math]::Max(1,$script:Servers.Count);$rows=[int][Math]::Ceiling($count/3.0);$visible=[Math]::Min(3,$rows)
-    $target=315+(($visible-1)*92)
+    $target=330+(($visible-1)*108)
     if($script:Window.WindowState -eq 'Normal'){$script:Window.Height=$target}
 }
 
@@ -614,8 +715,8 @@ function Refresh-ServerButtons {
         $empty=New-Object System.Windows.Controls.TextBlock;$script:EmptyText=$empty;$empty.Text=Get-T 'NoServers';$empty.Foreground=Get-Brush '#D8DCE5';$empty.FontSize=15;$empty.Margin='7,18,7,7';[void]$script:ServerPanel.Children.Add($empty);return
     }
     for($i=0;$i -lt $script:Servers.Count;$i++){
-        $s=$script:Servers[$i];$iconKey='Auto';if($s.PSObject.Properties['Icon']){$iconKey=[string]$s.Icon};$btn=New-Object System.Windows.Controls.Button;$btn.Content=New-ServerTileContent -Name ([string]$s.Name) -Address ([string]$s.Address) -Icon $iconKey;$btn.Tag=$i;$btn.Width=232;$btn.Height=88;$btn.Margin='7';$btn.Style=$script:ServerButtonStyle;$btn.AllowDrop=$true
-        $hex='';if($s.PSObject.Properties['Color']){$hex=[string]$s.Color};if([string]::IsNullOrWhiteSpace($hex)){$hex=[string]$script:Settings.DefaultButtonColor};$btn.Background=Get-Brush $hex
+        $s=$script:Servers[$i];$iconKey='Auto';if($s.PSObject.Properties['Icon']){$iconKey=[string]$s.Icon};$btn=New-Object System.Windows.Controls.Button;$btn.Content=New-ServerTileContent -Name ([string]$s.Name) -Address ([string]$s.Address) -Icon $iconKey;$btn.Tag=$i;$btn.Width=232;$btn.Height=104;$btn.Margin='7';$btn.Style=$script:ServerButtonStyle;$btn.AllowDrop=$true
+        $hex='';if($s.PSObject.Properties['Color']){$hex=[string]$s.Color};if([string]::IsNullOrWhiteSpace($hex)){$hex=[string]$script:Settings.DefaultButtonColor};$btn.Background=Get-Brush $hex;$btn.BorderBrush=Get-Brush (Get-ServerAccentColor -Name ([string]$s.Name) -Address ([string]$s.Address) -Icon $iconKey);$btn.BorderThickness='2'
 
         $btn.Add_PreviewMouseLeftButtonDown({param($sender,$e)$script:DragStartPoint=$e.GetPosition($script:Window)})
         $btn.Add_PreviewMouseMove({param($sender,$e) Start-ServerDrag $sender $e})
@@ -649,14 +750,14 @@ function Run-Launcher {
     if(Test-Path -LiteralPath $script:ErrorFile){Remove-Item -LiteralPath $script:ErrorFile -Force -ErrorAction SilentlyContinue}
 
     [xml]$xaml=@"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="HypeTek Server Launcher" Width="820" Height="315" MinWidth="700" MinHeight="285" WindowStartupLocation="CenterScreen" Background="#17191E" Foreground="White" FontFamily="Segoe UI" ResizeMode="CanResizeWithGrip">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="HypeTek Server Launcher" Width="820" Height="330" MinWidth="700" MinHeight="300" WindowStartupLocation="CenterScreen" Background="#17191E" Foreground="White" FontFamily="Segoe UI" ResizeMode="CanResizeWithGrip">
   <Window.Resources>
     <Style x:Key="ServerButtonStyle" TargetType="Button">
-      <Setter Property="Foreground" Value="White"/><Setter Property="FontSize" Value="15"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Cursor" Value="Hand"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="#72FFFFFF"/><Setter Property="Padding" Value="12"/>
+      <Setter Property="Foreground" Value="White"/><Setter Property="FontSize" Value="15"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Cursor" Value="Hand"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="#00D9FF"/><Setter Property="Padding" Value="12"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Card" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10" SnapsToDevicePixels="True">
+            <Border x:Name="Card" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" SnapsToDevicePixels="True">
               <Grid><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10"/></Grid>
             </Border>
             <ControlTemplate.Triggers>
@@ -680,14 +781,14 @@ function Run-Launcher {
       <Grid Grid.Row="0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel>
-          <TextBlock x:Name="TitleText" FontSize="25" FontWeight="SemiBold" Foreground="White"/>
+          <TextBlock x:Name="TitleText" FontSize="25" FontWeight="SemiBold" Foreground="#EAF8FF"/>
           <TextBlock x:Name="SubtitleText" FontSize="13" Foreground="#E5E8EE" Margin="1,2,0,0"/>
         </StackPanel>
         <Button x:Name="GearButton" Grid.Column="1" Content="⚙" Width="48" Height="42" FontSize="21" FontFamily="Segoe UI Symbol" Padding="0" Background="#AA20242C" Style="{StaticResource ActionButtonStyle}" Margin="12,0,0,0"/>
       </Grid>
       <Grid Grid.Row="1" Margin="0,16,0,8">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <Button x:Name="AddButton" MinWidth="190" Height="42" Padding="16,7" Background="#D92F80C1" Style="{StaticResource ActionButtonStyle}"/>
+        <Button x:Name="AddButton" MinWidth="190" Height="42" Padding="16,7" Background="#E6008DF3" Style="{StaticResource ActionButtonStyle}"/>
         <TextBlock x:Name="HintText" Grid.Column="1" VerticalAlignment="Center" Foreground="#D9DEE8" FontSize="12.5" Margin="18,0,0,0" TextWrapping="Wrap"/>
       </Grid>
       <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="Transparent" Margin="-7,4,-7,0">
