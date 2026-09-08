@@ -12,8 +12,8 @@ using System.Reflection;
 [assembly: AssemblyCompany("HypeTek")]
 [assembly: AssemblyDescription("Native launcher host for HypeTek Bookmarker")]
 [assembly: AssemblyCopyright("Copyright © 2026 HypeTek")]
-[assembly: AssemblyVersion("3.7.2.1")]
-[assembly: AssemblyFileVersion("3.7.2.1")]
+[assembly: AssemblyVersion("3.7.2.2")]
+[assembly: AssemblyFileVersion("3.7.2.2")]
 
 namespace HypeTek.Bookmarker.Launcher
 {
@@ -52,6 +52,39 @@ namespace HypeTek.Bookmarker.Launcher
                 string hostedBootstrap = "$script:BaseDir = '" + escapedBaseDir + "'";
                 if (scriptSource.Contains(baseDirBootstrap))
                     scriptSource = scriptSource.Replace(baseDirBootstrap, hostedBootstrap);
+
+                // Add the HypeTek icon to the WPF main window without modifying the legacy
+                // PowerShell core file. This keeps Code -> Download ZIP compatible while the
+                // native EXE remains responsible for the user-facing application identity.
+                const string mainWindowAnchor = "$window=[System.Windows.Markup.XamlReader]::Load($reader);$script:Window=$window";
+                string mainWindowWithIcon = mainWindowAnchor + Environment.NewLine +
+                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'app.ico'" + Environment.NewLine +
+                    "    if(Test-Path -LiteralPath $appIconPath){" + Environment.NewLine +
+                    "        try{" + Environment.NewLine +
+                    "            $appIconUri=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
+                    "            $window.Icon=[System.Windows.Media.Imaging.BitmapFrame]::Create($appIconUri)" + Environment.NewLine +
+                    "        }catch{}" + Environment.NewLine +
+                    "    }";
+                if (scriptSource.Contains(mainWindowAnchor))
+                    scriptSource = scriptSource.Replace(mainWindowAnchor, mainWindowWithIcon);
+
+                // Apply the same icon to settings/add/edit dialogs.
+                const string dialogAnchor = "    if ($script:Window) { $w.Owner=$script:Window }\r\n    return $w";
+                const string dialogAnchorLf = "    if ($script:Window) { $w.Owner=$script:Window }\n    return $w";
+                string dialogWithIcon =
+                    "    if ($script:Window) { $w.Owner=$script:Window }" + Environment.NewLine +
+                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'app.ico'" + Environment.NewLine +
+                    "    if(Test-Path -LiteralPath $appIconPath){" + Environment.NewLine +
+                    "        try{" + Environment.NewLine +
+                    "            $appIconUri=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
+                    "            $w.Icon=[System.Windows.Media.Imaging.BitmapFrame]::Create($appIconUri)" + Environment.NewLine +
+                    "        }catch{}" + Environment.NewLine +
+                    "    }" + Environment.NewLine +
+                    "    return $w";
+                if (scriptSource.Contains(dialogAnchor))
+                    scriptSource = scriptSource.Replace(dialogAnchor, dialogWithIcon);
+                else if (scriptSource.Contains(dialogAnchorLf))
+                    scriptSource = scriptSource.Replace(dialogAnchorLf, dialogWithIcon);
 
                 InitialSessionState state = InitialSessionState.CreateDefault();
                 using (Runspace runspace = RunspaceFactory.CreateRunspace(state))
