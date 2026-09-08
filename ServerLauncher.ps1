@@ -1,4 +1,4 @@
-﻿# HypeTek Server Launcher V3.6.4.2
+﻿# HypeTek Bookmarker V3.7 Preview
 # Windows 10/11 - Windows PowerShell 5.1 - WPF
 
 Add-Type -AssemblyName PresentationFramework
@@ -69,48 +69,48 @@ $script:LastDragEnd = [datetime]::MinValue
 
 $script:Translations = @{
     de = @{
-        Title='HypeTek Server Launcher'; Subtitle='Serveradressen mit einem Klick öffnen'; Add='Server hinzufügen';
-        Settings='Einstellungen'; Name='Buttonbeschriftung'; Address='Serveradresse'; Color='Buttonfarbe';
+        Title='HypeTek Bookmarker'; Subtitle='Server, NAS & Weboberflächen mit einem Klick öffnen'; Add='Eintrag hinzufügen';
+        Settings='Einstellungen'; Name='Bezeichnung'; Address='Adresse'; Color='Buttonfarbe';
         Default='Standard'; Save='Speichern'; Cancel='Abbrechen'; Edit='Bearbeiten'; Delete='Löschen';
-        DeleteConfirm='Diesen Server wirklich löschen?'; Language='Sprache'; DefaultColor='Standard-Buttonfarbe';
+        DeleteConfirm='Diesen Eintrag wirklich löschen?'; Language='Sprache'; DefaultColor='Standard-Buttonfarbe';
         Background='Hintergrundbild'; Choose='Auswählen'; Remove='Entfernen'; Apply='Übernehmen';
-        NoServers='Noch keine Server eingetragen.'; InvalidAddress='Bitte eine Serveradresse eingeben.';
+        NoServers='Noch keine Einträge vorhanden.'; InvalidAddress='Bitte eine Adresse eingeben.';
         InvalidName='Bitte eine Buttonbeschriftung eingeben.'; BrowseImage='Hintergrundbild auswählen';
-        OpenError='Die Adresse konnte nicht geöffnet werden.'; AppSettings='Launcher-Einstellungen';
-        NewServer='Neuer Server'; EditServer='Server bearbeiten'; Error='Fehler';
+        OpenError='Die Adresse konnte nicht geöffnet werden.'; AppSettings='Bookmarker-Einstellungen';
+        NewServer='Neuer Eintrag'; EditServer='Eintrag bearbeiten'; Error='Fehler';
         Hint='Drag & Drop: Reihenfolge ändern  •  Rechtsklick: Bearbeiten oder Löschen'; BackgroundNone='Kein Hintergrundbild ausgewählt';
         BackgroundMode='Bildanpassung'; ModeCover='Ausfüllen'; ModeFit='Einpassen'; ModeStretch='Strecken';
-        BackgroundDim='Hintergrund abdunkeln'; Percent='%'; DefaultWallpaper='HypeTek Standard-Wallpaper'; ResetDesign='Standarddesign'; ResetDesignHint='Setzt nur Farben, Wallpaper und Darstellung zurück – Server bleiben unverändert.';
+        BackgroundDim='Hintergrund abdunkeln'; Percent='%'; DefaultWallpaper='HypeTek Standard-Wallpaper'; ResetDesign='Standarddesign'; ResetDesignHint='Setzt nur Farben, Wallpaper und Darstellung zurück – Einträge bleiben unverändert.';
         ShowHint='Hilfstext für Drag & Drop / Rechtsklick anzeigen'; ColorChoose='Farbe wählen'; AddressExample='z. B. 192.168.1.10 oder https://server.local:8443'; Icon='Symbol'; IconAuto='Automatisch'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualisierung'; IconGeneric='Allgemein'
     }
     en = @{
-        Title='HypeTek Server Launcher'; Subtitle='Open server addresses with one click'; Add='Add server';
-        Settings='Settings'; Name='Button label'; Address='Server address'; Color='Button color';
+        Title='HypeTek Bookmarker'; Subtitle='Open servers, NAS & web interfaces with one click'; Add='Add entry';
+        Settings='Settings'; Name='Label'; Address='Address'; Color='Button color';
         Default='Default'; Save='Save'; Cancel='Cancel'; Edit='Edit'; Delete='Delete';
-        DeleteConfirm='Really delete this server?'; Language='Language'; DefaultColor='Default button color';
+        DeleteConfirm='Really delete this entry?'; Language='Language'; DefaultColor='Default button color';
         Background='Background image'; Choose='Choose'; Remove='Remove'; Apply='Apply';
-        NoServers='No servers added yet.'; InvalidAddress='Please enter a server address.';
+        NoServers='No entries added yet.'; InvalidAddress='Please enter an address.';
         InvalidName='Please enter a button label.'; BrowseImage='Choose background image';
-        OpenError='The address could not be opened.'; AppSettings='Launcher settings';
-        NewServer='New server'; EditServer='Edit server'; Error='Error';
-        Hint='Drag & drop: reorder servers  •  Right-click: edit or delete'; BackgroundNone='No background image selected';
+        OpenError='The address could not be opened.'; AppSettings='Bookmarker settings';
+        NewServer='New entry'; EditServer='Edit entry'; Error='Error';
+        Hint='Drag & drop: reorder entries  •  Right-click: edit or delete'; BackgroundNone='No background image selected';
         BackgroundMode='Image scaling'; ModeCover='Fill'; ModeFit='Fit'; ModeStretch='Stretch';
-        BackgroundDim='Darken background'; Percent='%'; DefaultWallpaper='HypeTek default wallpaper'; ResetDesign='Default design'; ResetDesignHint='Resets only colors, wallpaper and appearance – server entries stay unchanged.';
+        BackgroundDim='Darken background'; Percent='%'; DefaultWallpaper='HypeTek default wallpaper'; ResetDesign='Default design'; ResetDesignHint='Resets only colors, wallpaper and appearance – saved entries stay unchanged.';
         ShowHint='Show drag & drop / right-click help text'; ColorChoose='Choose color'; AddressExample='e.g. 192.168.1.10 or https://server.local:8443'; Icon='Icon'; IconAuto='Automatic'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualization'; IconGeneric='Generic'
     }
     ru = @{
-        Title='HypeTek Server Launcher'; Subtitle='Открывайте адреса серверов одним нажатием'; Add='Добавить сервер';
-        Settings='Настройки'; Name='Название кнопки'; Address='Адрес сервера'; Color='Цвет кнопки';
+        Title='HypeTek Bookmarker'; Subtitle='Серверы, NAS и веб-интерфейсы в один клик'; Add='Добавить запись';
+        Settings='Настройки'; Name='Название'; Address='Адрес'; Color='Цвет кнопки';
         Default='По умолчанию'; Save='Сохранить'; Cancel='Отмена'; Edit='Изменить'; Delete='Удалить';
-        DeleteConfirm='Удалить этот сервер?'; Language='Язык'; DefaultColor='Цвет кнопок по умолчанию';
+        DeleteConfirm='Удалить эту запись?'; Language='Язык'; DefaultColor='Цвет кнопок по умолчанию';
         Background='Фоновое изображение'; Choose='Выбрать'; Remove='Удалить'; Apply='Применить';
-        NoServers='Серверы пока не добавлены.'; InvalidAddress='Введите адрес сервера.';
+        NoServers='Записей пока нет.'; InvalidAddress='Введите адрес.';
         InvalidName='Введите название кнопки.'; BrowseImage='Выберите фоновое изображение';
-        OpenError='Не удалось открыть адрес.'; AppSettings='Настройки лаунчера';
-        NewServer='Новый сервер'; EditServer='Изменить сервер'; Error='Ошибка';
+        OpenError='Не удалось открыть адрес.'; AppSettings='Настройки Bookmarker';
+        NewServer='Новая запись'; EditServer='Изменить запись'; Error='Ошибка';
         Hint='Drag & Drop: изменить порядок  •  Правый клик: изменить или удалить'; BackgroundNone='Фоновое изображение не выбрано';
         BackgroundMode='Масштаб изображения'; ModeCover='Заполнить'; ModeFit='Вписать'; ModeStretch='Растянуть';
-        BackgroundDim='Затемнение фона'; Percent='%'; DefaultWallpaper='Стандартные обои HypeTek'; ResetDesign='Стандартный дизайн'; ResetDesignHint='Сбрасывает только цвета, обои и оформление – серверы не изменяются.';
+        BackgroundDim='Затемнение фона'; Percent='%'; DefaultWallpaper='Стандартные обои HypeTek'; ResetDesign='Стандартный дизайн'; ResetDesignHint='Сбрасывает только цвета, обои и оформление – записи не изменяются.';
         ShowHint='Показывать подсказку Drag & Drop / правый клик'; ColorChoose='Выбрать цвет'; AddressExample='например 192.168.1.10 или https://server.local:8443'; Icon='Символ'; IconAuto='Автоматически'; IconServer='Сервер'; IconPC='ПК'; IconLaptop='Ноутбук'; IconWebsite='Веб-сайт'; IconNAS='NAS'; IconRouter='Роутер'; IconRaspberry='Raspberry Pi'; IconVM='VM / виртуализация'; IconGeneric='Общее'
     }
 }
@@ -827,7 +827,7 @@ function Run-Launcher {
     if(Test-Path -LiteralPath $script:ErrorFile){Remove-Item -LiteralPath $script:ErrorFile -Force -ErrorAction SilentlyContinue}
 
     [xml]$xaml=@"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="HypeTek Server Launcher" Width="1060" Height="359" MinWidth="860" MinHeight="340" WindowStartupLocation="CenterScreen" Background="#17191E" Foreground="White" FontFamily="Segoe UI" ResizeMode="CanResizeWithGrip">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="HypeTek Bookmarker" Width="1060" Height="359" MinWidth="860" MinHeight="340" WindowStartupLocation="CenterScreen" Background="#17191E" Foreground="White" FontFamily="Segoe UI" ResizeMode="CanResizeWithGrip">
   <Window.Resources>
     <Style x:Key="ServerButtonStyle" TargetType="Button">
       <Setter Property="Foreground" Value="White"/><Setter Property="FontSize" Value="15"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Cursor" Value="Hand"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="#00D9FF"/><Setter Property="Padding" Value="12"/>
@@ -888,4 +888,4 @@ function Run-Launcher {
 }
 
 try { Run-Launcher; exit 0 }
-catch { Write-LauncherError $_; try{[System.Windows.MessageBox]::Show("$($_.Exception.Message)`r`n`r`nDetails: $script:ErrorFile",'HypeTek Server Launcher','OK','Error')|Out-Null}catch{}; exit 1 }
+catch { Write-LauncherError $_; try{[System.Windows.MessageBox]::Show("$($_.Exception.Message)`r`n`r`nDetails: $script:ErrorFile",'HypeTek Bookmarker','OK','Error')|Out-Null}catch{}; exit 1 }
