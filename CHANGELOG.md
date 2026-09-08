@@ -1,35 +1,40 @@
-﻿# v3.6.4.2 - Window sizing correction
+﻿# Changelog
 
-- Corrects the one-row startup height after introducing the 88-DIP persistent header logo.
-- One-row window now starts at 359 DIPs instead of 330 DIPs.
-- Bottom breathing room is intended to mirror the gap between the Add Server button and the first tile.
-- Additional tile rows still grow automatically by 118 DIPs per row.
-- Existing wallpaper, header-logo overlay and ShowHint setting are unchanged.
+All notable changes to **HypeTek Bookmarker** (formerly HypeTek Server Launcher) are documented here.
 
-# Changelog
+## [3.7] - Preview
 
-All notable changes to HypeTek Server Launcher are documented here.
+### Rebrand
+- Product renamed from **HypeTek Server Launcher** to **HypeTek Bookmarker**.
+- Main UI terminology now uses broader entries/bookmarks instead of treating every target as a server.
+- New HypeTek Bookmarker header artwork and README preview.
+- Added `Start_Bookmarker.vbs` and `Start_Bookmarker.bat` as the recommended launchers.
 
-## [3.6] - Unreleased
+### Compatibility
+- Existing `servers.json` and `settings.json` files remain compatible.
+- `%LOCALAPPDATA%\HypeTek\ServerLauncher` is intentionally retained so existing installations keep their configuration.
+- `ServerLauncher.ps1` remains the internal core filename for this transition release.
+- Existing `Start_ServerLauncher.vbs` and `.bat` launchers remain functional.
+- No automatic migration or deletion of saved entries is performed.
 
-### v3.6.2 preview UI polish
-- Larger default startup window (1060 × 570) so the branded header and wallpaper are not cramped.
-- Window auto-height no longer shrinks the launcher back to the old compact size.
-- New persistent setting to show/hide the Drag & Drop / right-click help text.
-- Keeps the persistent transparent HypeTek header logo and resilient bundled wallpaper fallback.
+## [3.6] - 2026-09-08
 
 ### Added
 - Bundled HypeTek cyberpunk default wallpaper for fresh installations.
+- Persistent transparent HypeTek header logo that remains visible with custom wallpapers.
 - Bundled neon PNG icon set for Server, PC, Laptop, Website, NAS, Router, Raspberry Pi, VM and Generic targets.
-- Server addresses are now shown below tile labels.
+- Server addresses shown below tile labels.
 - Device-type accent borders for server tiles.
+- Optional Drag & Drop / right-click help text in Settings.
 - Subtle **Default design** action in Settings.
 
 ### Changed
-- Fresh installations now start with the bundled wallpaper, a darker default tile color and 28% background dimming.
-- Product title is consistently shown as **HypeTek Server Launcher** in all interface languages.
+- Fresh installations start with the bundled wallpaper, a darker default tile color and 28% background dimming.
 - Existing installations keep their current settings; the new appearance is not forced on upgrades.
 - Bundled application artwork is stored under `resources/`, while user-selected wallpapers continue to use `assets/`.
+- Default window width increased to 1060 DIPs.
+- One-row startup height tuned to **359 DIPs**; additional tile rows grow automatically by 118 DIPs.
+- Window auto-height no longer forces a manually enlarged window smaller.
 
 ### Safety / compatibility
 - The Default design action resets appearance settings only and does not modify or delete saved servers.
@@ -109,9 +114,3 @@ All notable changes to HypeTek Server Launcher are documented here.
 - Default and per-server button colors.
 - German, English and Russian localization.
 - Right-click actions for editing and deleting server entries.
-
-### v3.6.3 Preview - compact adaptive start height
-- Default start width remains 1060 px, but the one-row start height returns to a compact 330 px.
-- Bottom spacing below the last tile now approximately mirrors the gap between the Add button and the first tile.
-- Additional server rows grow the window by one full tile row (118 px) up to three visible rows.
-- Existing manual larger window sizes are not forced smaller during refresh.
