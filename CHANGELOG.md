@@ -1,7 +1,7 @@
-﻿# v3.6.4 - Window sizing correction
+﻿# v3.6.4.2 - Window sizing correction
 
 - Corrects the one-row startup height after introducing the 88-DIP persistent header logo.
-- One-row window now starts at 350 DIPs instead of 330 DIPs.
+- One-row window now starts at 359 DIPs instead of 330 DIPs.
 - Bottom breathing room is intended to mirror the gap between the Add Server button and the first tile.
 - Additional tile rows still grow automatically by 118 DIPs per row.
 - Existing wallpaper, header-logo overlay and ShowHint setting are unchanged.
