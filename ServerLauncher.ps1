@@ -1,4 +1,4 @@
-﻿# HypeTek Server Launcher V3.6
+﻿# HypeTek Server Launcher V3.6.4.2
 # Windows 10/11 - Windows PowerShell 5.1 - WPF
 
 Add-Type -AssemblyName PresentationFramework
@@ -55,6 +55,7 @@ $script:Window = $null
 $script:ServerPanel = $null
 $script:BackgroundImageControl = $null
 $script:DimOverlay = $null
+$script:HeaderLogo = $null
 $script:TitleText = $null
 $script:SubtitleText = $null
 $script:AddButton = $null
@@ -80,7 +81,7 @@ $script:Translations = @{
         Hint='Drag & Drop: Reihenfolge ändern  •  Rechtsklick: Bearbeiten oder Löschen'; BackgroundNone='Kein Hintergrundbild ausgewählt';
         BackgroundMode='Bildanpassung'; ModeCover='Ausfüllen'; ModeFit='Einpassen'; ModeStretch='Strecken';
         BackgroundDim='Hintergrund abdunkeln'; Percent='%'; DefaultWallpaper='HypeTek Standard-Wallpaper'; ResetDesign='Standarddesign'; ResetDesignHint='Setzt nur Farben, Wallpaper und Darstellung zurück – Server bleiben unverändert.';
-        ColorChoose='Farbe wählen'; AddressExample='z. B. 192.168.1.10 oder https://server.local:8443'; Icon='Symbol'; IconAuto='Automatisch'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualisierung'; IconGeneric='Allgemein'
+        ShowHint='Hilfstext für Drag & Drop / Rechtsklick anzeigen'; ColorChoose='Farbe wählen'; AddressExample='z. B. 192.168.1.10 oder https://server.local:8443'; Icon='Symbol'; IconAuto='Automatisch'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualisierung'; IconGeneric='Allgemein'
     }
     en = @{
         Title='HypeTek Server Launcher'; Subtitle='Open server addresses with one click'; Add='Add server';
@@ -95,7 +96,7 @@ $script:Translations = @{
         Hint='Drag & drop: reorder servers  •  Right-click: edit or delete'; BackgroundNone='No background image selected';
         BackgroundMode='Image scaling'; ModeCover='Fill'; ModeFit='Fit'; ModeStretch='Stretch';
         BackgroundDim='Darken background'; Percent='%'; DefaultWallpaper='HypeTek default wallpaper'; ResetDesign='Default design'; ResetDesignHint='Resets only colors, wallpaper and appearance – server entries stay unchanged.';
-        ColorChoose='Choose color'; AddressExample='e.g. 192.168.1.10 or https://server.local:8443'; Icon='Icon'; IconAuto='Automatic'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualization'; IconGeneric='Generic'
+        ShowHint='Show drag & drop / right-click help text'; ColorChoose='Choose color'; AddressExample='e.g. 192.168.1.10 or https://server.local:8443'; Icon='Icon'; IconAuto='Automatic'; IconServer='Server'; IconPC='PC'; IconLaptop='Laptop'; IconWebsite='Website'; IconNAS='NAS'; IconRouter='Router'; IconRaspberry='Raspberry Pi'; IconVM='VM / Virtualization'; IconGeneric='Generic'
     }
     ru = @{
         Title='HypeTek Server Launcher'; Subtitle='Открывайте адреса серверов одним нажатием'; Add='Добавить сервер';
@@ -110,7 +111,7 @@ $script:Translations = @{
         Hint='Drag & Drop: изменить порядок  •  Правый клик: изменить или удалить'; BackgroundNone='Фоновое изображение не выбрано';
         BackgroundMode='Масштаб изображения'; ModeCover='Заполнить'; ModeFit='Вписать'; ModeStretch='Растянуть';
         BackgroundDim='Затемнение фона'; Percent='%'; DefaultWallpaper='Стандартные обои HypeTek'; ResetDesign='Стандартный дизайн'; ResetDesignHint='Сбрасывает только цвета, обои и оформление – серверы не изменяются.';
-        ColorChoose='Выбрать цвет'; AddressExample='например 192.168.1.10 или https://server.local:8443'; Icon='Символ'; IconAuto='Автоматически'; IconServer='Сервер'; IconPC='ПК'; IconLaptop='Ноутбук'; IconWebsite='Веб-сайт'; IconNAS='NAS'; IconRouter='Роутер'; IconRaspberry='Raspberry Pi'; IconVM='VM / виртуализация'; IconGeneric='Общее'
+        ShowHint='Показывать подсказку Drag & Drop / правый клик'; ColorChoose='Выбрать цвет'; AddressExample='например 192.168.1.10 или https://server.local:8443'; Icon='Символ'; IconAuto='Автоматически'; IconServer='Сервер'; IconPC='ПК'; IconLaptop='Ноутбук'; IconWebsite='Веб-сайт'; IconNAS='NAS'; IconRouter='Роутер'; IconRaspberry='Raspberry Pi'; IconVM='VM / виртуализация'; IconGeneric='Общее'
     }
 }
 
@@ -140,7 +141,7 @@ function Ensure-Data {
     if (-not (Test-Path -LiteralPath $script:AssetsDir)) { [void](New-Item -ItemType Directory -Path $script:AssetsDir -Force) }
     if (-not (Test-Path -LiteralPath $script:ServersFile)) { Write-Utf8Bom $script:ServersFile '[]' }
     if (-not (Test-Path -LiteralPath $script:SettingsFile)) {
-        $default=[ordered]@{ Language='de'; DefaultButtonColor='#163A52'; BackgroundImage=$script:DefaultWallpaperToken; BackgroundMode='Cover'; BackgroundDim=28 }
+        $default=[ordered]@{ Language='de'; DefaultButtonColor='#163A52'; BackgroundImage=$script:DefaultWallpaperToken; BackgroundMode='Cover'; BackgroundDim=28; ShowHint=$true }
         Write-Utf8Bom $script:SettingsFile ($default | ConvertTo-Json)
     }
 }
@@ -156,13 +157,14 @@ function Load-Data {
         $script:Settings=(Get-Content -LiteralPath $script:SettingsFile -Raw -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop
     } catch {
         Write-LauncherError $_
-        $script:Settings=[pscustomobject]@{ Language='de'; DefaultButtonColor='#163A52'; BackgroundImage=$script:DefaultWallpaperToken; BackgroundMode='Cover'; BackgroundDim=28 }
+        $script:Settings=[pscustomobject]@{ Language='de'; DefaultButtonColor='#163A52'; BackgroundImage=$script:DefaultWallpaperToken; BackgroundMode='Cover'; BackgroundDim=28; ShowHint=$true }
     }
     if (-not $script:Settings.PSObject.Properties['Language']) { $script:Settings | Add-Member -NotePropertyName Language -NotePropertyValue 'de' -Force }
     if (-not $script:Settings.PSObject.Properties['DefaultButtonColor']) { $script:Settings | Add-Member -NotePropertyName DefaultButtonColor -NotePropertyValue '#2F80C1' -Force }
-    if (-not $script:Settings.PSObject.Properties['BackgroundImage']) { $script:Settings | Add-Member -NotePropertyName BackgroundImage -NotePropertyValue '' -Force }
+    if (-not $script:Settings.PSObject.Properties['BackgroundImage']) { $script:Settings | Add-Member -NotePropertyName BackgroundImage -NotePropertyValue $script:DefaultWallpaperToken -Force }
     if (-not $script:Settings.PSObject.Properties['BackgroundMode']) { $script:Settings | Add-Member -NotePropertyName BackgroundMode -NotePropertyValue 'Cover' -Force }
     if (-not $script:Settings.PSObject.Properties['BackgroundDim']) { $script:Settings | Add-Member -NotePropertyName BackgroundDim -NotePropertyValue 45 -Force }
+    if (-not $script:Settings.PSObject.Properties['ShowHint']) { $script:Settings | Add-Member -NotePropertyName ShowHint -NotePropertyValue $true -Force }
 }
 
 function Save-Servers {
@@ -566,7 +568,7 @@ function Test-ImageFile {
 }
 
 function Show-SettingsDialog {
-    $dlg=New-DialogWindow (Get-T 'AppSettings') 600 575
+    $dlg=New-DialogWindow (Get-T 'AppSettings') 600 620
     $grid=New-Object System.Windows.Controls.Grid; $grid.Margin='24'; $dlg.Content=$grid
     for($i=0;$i -lt 12;$i++){ $r=New-Object System.Windows.Controls.RowDefinition; $r.Height='Auto'; [void]$grid.RowDefinitions.Add($r) }
 
@@ -615,24 +617,74 @@ function Show-SettingsDialog {
     $slider=New-Object System.Windows.Controls.Slider;$slider.Minimum=0;$slider.Maximum=80;$slider.TickFrequency=5;$slider.Value=[double]$script:Settings.BackgroundDim;$slider.Margin='10,0';[System.Windows.Controls.Grid]::SetColumn($slider,1);[void]$dimGrid.Children.Add($slider)
     $dimVal=New-Object System.Windows.Controls.TextBlock;$dimVal.Text=([int]$slider.Value).ToString()+' %';$dimVal.VerticalAlignment='Center';$dimVal.HorizontalAlignment='Right';[System.Windows.Controls.Grid]::SetColumn($dimVal,2);[void]$dimGrid.Children.Add($dimVal);$slider.Add_ValueChanged({$dimVal.Text=([int]$slider.Value).ToString()+' %'});[System.Windows.Controls.Grid]::SetRow($dimGrid,7);[void]$grid.Children.Add($dimGrid)
 
+    $chkHint=New-Object System.Windows.Controls.CheckBox;$chkHint.Content=Get-T 'ShowHint';$chkHint.IsChecked=[bool]$script:Settings.ShowHint;$chkHint.Margin='0,0,0,12';$chkHint.Foreground=[System.Windows.Media.Brushes]::White;$chkHint.FontSize=12.5;[System.Windows.Controls.Grid]::SetRow($chkHint,8);[void]$grid.Children.Add($chkHint)
+
     $buttonGrid=New-Object System.Windows.Controls.Grid;$buttonGrid.Margin='0,16,0,0'
     $bc1=New-Object System.Windows.Controls.ColumnDefinition;$bc1.Width='*';$bc2=New-Object System.Windows.Controls.ColumnDefinition;$bc2.Width='Auto';[void]$buttonGrid.ColumnDefinitions.Add($bc1);[void]$buttonGrid.ColumnDefinitions.Add($bc2)
     $reset=New-FlatButton ('↺  '+(Get-T 'ResetDesign')) 165 '#252A33';$reset.Height=30;$reset.FontSize=11;$reset.Opacity=0.72;$reset.HorizontalAlignment='Left';$reset.Margin='0';$reset.ToolTip=Get-T 'ResetDesignHint';[System.Windows.Controls.Grid]::SetColumn($reset,0);[void]$buttonGrid.Children.Add($reset)
-    $buttons=New-Object System.Windows.Controls.StackPanel;$buttons.Orientation='Horizontal';$buttons.HorizontalAlignment='Right';$apply=New-FlatButton (Get-T 'Apply') 110 '#008DF3';$cancel=New-FlatButton (Get-T 'Cancel') 110 '#353A45';[void]$buttons.Children.Add($apply);[void]$buttons.Children.Add($cancel);[System.Windows.Controls.Grid]::SetColumn($buttons,1);[void]$buttonGrid.Children.Add($buttons);[System.Windows.Controls.Grid]::SetRow($buttonGrid,9);[void]$grid.Children.Add($buttonGrid)
+    $buttons=New-Object System.Windows.Controls.StackPanel;$buttons.Orientation='Horizontal';$buttons.HorizontalAlignment='Right';$apply=New-FlatButton (Get-T 'Apply') 110 '#008DF3';$cancel=New-FlatButton (Get-T 'Cancel') 110 '#353A45';[void]$buttons.Children.Add($apply);[void]$buttons.Children.Add($cancel);[System.Windows.Controls.Grid]::SetColumn($buttons,1);[void]$buttonGrid.Children.Add($buttons);[System.Windows.Controls.Grid]::SetRow($buttonGrid,10);[void]$grid.Children.Add($buttonGrid)
     $reset.Add_Click({
         $defColor.Tag='#163A52';$defColor.Background=Get-Brush '#163A52'
         $bgText.Tag=$script:DefaultWallpaperToken;$bgText.Text=Get-T 'DefaultWallpaper'
         $cmbMode.SelectedIndex=0
         $slider.Value=28
+        $chkHint.IsChecked=$true
     })
     $cancel.Add_Click({$dlg.DialogResult=$false;$dlg.Close()})
     $apply.Add_Click({
         $lang='de';if($cmbLang.SelectedIndex -eq 1){$lang='en'}elseif($cmbLang.SelectedIndex -eq 2){$lang='ru'}
         $mode='Cover';if($cmbMode.SelectedIndex -eq 1){$mode='Fit'}elseif($cmbMode.SelectedIndex -eq 2){$mode='Stretch'}
-        $script:Settings.Language=$lang;$script:Settings.DefaultButtonColor=[string]$defColor.Tag;$script:Settings.BackgroundImage=[string]$bgText.Tag;$script:Settings.BackgroundMode=$mode;$script:Settings.BackgroundDim=[int]$slider.Value
+        $script:Settings.Language=$lang;$script:Settings.DefaultButtonColor=[string]$defColor.Tag;$script:Settings.BackgroundImage=[string]$bgText.Tag;$script:Settings.BackgroundMode=$mode;$script:Settings.BackgroundDim=[int]$slider.Value;$script:Settings.ShowHint=[bool]$chkHint.IsChecked
         Save-Settings;$dlg.DialogResult=$true;$dlg.Close()
     })
-    $result=$dlg.ShowDialog(); if($result -eq $true){Apply-Language;Apply-Background;Refresh-ServerButtons}
+    $result=$dlg.ShowDialog(); if($result -eq $true){Apply-Language;Apply-HintVisibility;Apply-Background;Refresh-ServerButtons}
+}
+
+function Get-HeaderLogoPath {
+    $candidates=@(
+        (Join-Path $script:BundledAssetsDir 'header-logo.png'),
+        (Join-Path $script:BundledAssetsDir 'header-logo.webp'),
+        (Join-Path $script:BundledAssetsDir 'header-logo.jpg')
+    )
+    foreach($candidate in $candidates){
+        if(Test-Path -LiteralPath $candidate){ return $candidate }
+    }
+    return $null
+}
+
+function Get-DefaultWallpaperPath {
+    $candidates=@(
+        (Join-Path $script:BundledAssetsDir 'default-wallpaper.png'),
+        (Join-Path $script:BundledAssetsDir 'default-wallpaper.jpg'),
+        (Join-Path $script:BundledAssetsDir 'wall-1280-q55.jpg'),
+        (Join-Path $script:BundledAssetsDir 'wall-1024-q48.jpg'),
+        (Join-Path $script:BundledAssetsDir 'wall-960-q45.jpg'),
+        (Join-Path $script:BundledAssetsDir 'wall-800-q42.jpg')
+    )
+    foreach($candidate in $candidates){
+        if(Test-Path -LiteralPath $candidate){ return $candidate }
+    }
+    return $null
+}
+
+function Apply-HeaderLogo {
+    if(-not $script:HeaderLogo){ return }
+    $script:HeaderLogo.Source=$null
+    $path=Get-HeaderLogoPath
+    if([string]::IsNullOrWhiteSpace($path)){ return }
+    try{
+        $bi=New-Object System.Windows.Media.Imaging.BitmapImage
+        $bi.BeginInit()
+        $bi.CacheOption='OnLoad'
+        $bi.UriSource=New-Object System.Uri -ArgumentList $path
+        $bi.EndInit()
+        $bi.Freeze()
+        $script:HeaderLogo.Source=$bi
+        $script:HeaderLogo.Visibility='Visible'
+    }catch{
+        Write-LauncherError $_
+        $script:HeaderLogo.Visibility='Collapsed'
+    }
 }
 
 function Apply-Background {
@@ -641,7 +693,7 @@ function Apply-Background {
     $bg=[string]$script:Settings.BackgroundImage
     if(-not [string]::IsNullOrWhiteSpace($bg)){
         if($bg -eq $script:DefaultWallpaperToken){
-            $path=Join-Path $script:BundledAssetsDir 'default-wallpaper.jpg'
+            $path=Get-DefaultWallpaperPath
         }else{
             $path=Join-Path $script:DataDir $bg
         }
@@ -659,15 +711,40 @@ function Apply-Background {
 
 function Apply-Language {
     if(-not $script:Window){return}
-    $script:TitleText.Text=Get-T 'Title';$script:SubtitleText.Text=Get-T 'Subtitle';$script:AddButton.Content='+  '+(Get-T 'Add');$script:HintText.Text=Get-T 'Hint';$script:GearButton.ToolTip=Get-T 'Settings'
+    $script:Window.Title=Get-T 'Title'
+    if($script:TitleText){$script:TitleText.Text=Get-T 'Title'}
+    if($script:SubtitleText){$script:SubtitleText.Text=Get-T 'Subtitle'}
+    $script:AddButton.Content='+  '+(Get-T 'Add');$script:HintText.Text=Get-T 'Hint';$script:GearButton.ToolTip=Get-T 'Settings'
     if($script:EmptyText){$script:EmptyText.Text=Get-T 'NoServers'}
+}
+
+function Apply-HintVisibility {
+    if(-not $script:HintText){ return }
+    if([bool]$script:Settings.ShowHint){
+        $script:HintText.Visibility='Visible'
+    }else{
+        $script:HintText.Visibility='Collapsed'
+    }
 }
 
 function Update-WindowHeight {
     if(-not $script:Window){return}
-    $count=[Math]::Max(1,$script:Servers.Count);$rows=[int][Math]::Ceiling($count/3.0);$visible=[Math]::Min(3,$rows)
-    $target=330+(($visible-1)*108)
-    if($script:Window.WindowState -eq 'Normal'){$script:Window.Height=$target}
+    $count=[Math]::Max(1,$script:Servers.Count)
+    $rows=[int][Math]::Ceiling($count/3.0)
+    $visible=[Math]::Min(3,$rows)
+
+    # One visible row: leave approximately the same breathing room below the
+    # last tile as there is between the Add button and the first tile. The
+    # 88-DIP header logo made the old 330-DIP base too short and clipped the
+    # first tile. Each extra row adds one complete tile including its margins.
+    $target=359+(($visible-1)*118)
+    $target=[Math]::Min(586,$target)
+
+    # Grow automatically when more rows are needed, but never fight a user who
+    # has manually made the window larger.
+    if($script:Window.WindowState -eq 'Normal' -and $script:Window.Height -lt $target){
+        $script:Window.Height=$target
+    }
 }
 
 function Move-ServerItem {
@@ -750,7 +827,7 @@ function Run-Launcher {
     if(Test-Path -LiteralPath $script:ErrorFile){Remove-Item -LiteralPath $script:ErrorFile -Force -ErrorAction SilentlyContinue}
 
     [xml]$xaml=@"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="HypeTek Server Launcher" Width="820" Height="330" MinWidth="700" MinHeight="300" WindowStartupLocation="CenterScreen" Background="#17191E" Foreground="White" FontFamily="Segoe UI" ResizeMode="CanResizeWithGrip">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="HypeTek Server Launcher" Width="1060" Height="359" MinWidth="860" MinHeight="340" WindowStartupLocation="CenterScreen" Background="#17191E" Foreground="White" FontFamily="Segoe UI" ResizeMode="CanResizeWithGrip">
   <Window.Resources>
     <Style x:Key="ServerButtonStyle" TargetType="Button">
       <Setter Property="Foreground" Value="White"/><Setter Property="FontSize" Value="15"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Cursor" Value="Hand"/><Setter Property="BorderThickness" Value="2"/><Setter Property="BorderBrush" Value="#00D9FF"/><Setter Property="Padding" Value="12"/>
@@ -780,9 +857,10 @@ function Run-Launcher {
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <Grid Grid.Row="0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <StackPanel>
-          <TextBlock x:Name="TitleText" FontSize="25" FontWeight="SemiBold" Foreground="#EAF8FF"/>
-          <TextBlock x:Name="SubtitleText" FontSize="13" Foreground="#E5E8EE" Margin="1,2,0,0"/>
+        <StackPanel Orientation="Vertical">
+          <Image x:Name="HeaderLogo" Height="88" Stretch="Uniform" HorizontalAlignment="Left" Margin="0,0,0,2"/>
+          <TextBlock x:Name="TitleText" FontSize="25" FontWeight="SemiBold" Foreground="#EAF8FF" Visibility="Collapsed"/>
+          <TextBlock x:Name="SubtitleText" FontSize="13" Foreground="#E5E8EE" Margin="1,2,0,0" Visibility="Collapsed"/>
         </StackPanel>
         <Button x:Name="GearButton" Grid.Column="1" Content="⚙" Width="48" Height="42" FontSize="21" FontFamily="Segoe UI Symbol" Padding="0" Background="#AA20242C" Style="{StaticResource ActionButtonStyle}" Margin="12,0,0,0"/>
       </Grid>
@@ -800,12 +878,12 @@ function Run-Launcher {
 "@
     $reader=New-Object System.Xml.XmlNodeReader $xaml
     $window=[System.Windows.Markup.XamlReader]::Load($reader);$script:Window=$window
-    $script:BackgroundImageControl=$window.FindName('BgImage');$script:DimOverlay=$window.FindName('DimOverlay');$script:TitleText=$window.FindName('TitleText');$script:SubtitleText=$window.FindName('SubtitleText');$script:AddButton=$window.FindName('AddButton');$script:GearButton=$window.FindName('GearButton');$script:HintText=$window.FindName('HintText');$script:ServerPanel=$window.FindName('ServerPanel');$script:ServerButtonStyle=$window.Resources['ServerButtonStyle']
+    $script:BackgroundImageControl=$window.FindName('BgImage');$script:DimOverlay=$window.FindName('DimOverlay');$script:HeaderLogo=$window.FindName('HeaderLogo');$script:TitleText=$window.FindName('TitleText');$script:SubtitleText=$window.FindName('SubtitleText');$script:AddButton=$window.FindName('AddButton');$script:GearButton=$window.FindName('GearButton');$script:HintText=$window.FindName('HintText');$script:ServerPanel=$window.FindName('ServerPanel');$script:ServerButtonStyle=$window.Resources['ServerButtonStyle']
     $script:ServerPanel.AllowDrop=$true
     $script:ServerPanel.Add_DragOver({param($sender,$e)if($e.Data.GetDataPresent('HypeTekServerIndex')){$e.Effects=[System.Windows.DragDropEffects]::Move}})
     $script:ServerPanel.Add_Drop({param($sender,$e)if(-not $e.Handled -and $e.Data.GetDataPresent('HypeTekServerIndex')){$from=[int]$e.Data.GetData('HypeTekServerIndex');Move-ServerItem -FromIndex $from -ToIndex ($script:Servers.Count-1);$e.Handled=$true}})
     $script:AddButton.Add_Click({Show-ServerDialog});$script:GearButton.Add_Click({Show-SettingsDialog})
-    Apply-Language;Apply-Background;Refresh-ServerButtons
+    Apply-Language;Apply-HeaderLogo;Apply-HintVisibility;Apply-Background;Refresh-ServerButtons
     [void]$window.ShowDialog()
 }
 
