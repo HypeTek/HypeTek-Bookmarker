@@ -12,8 +12,8 @@ using System.Reflection;
 [assembly: AssemblyCompany("HypeTek")]
 [assembly: AssemblyDescription("Native launcher host for HypeTek Bookmarker")]
 [assembly: AssemblyCopyright("Copyright © 2026 HypeTek")]
-[assembly: AssemblyVersion("3.7.2.0")]
-[assembly: AssemblyFileVersion("3.7.2.0")]
+[assembly: AssemblyVersion("3.7.2.1")]
+[assembly: AssemblyFileVersion("3.7.2.1")]
 
 namespace HypeTek.Bookmarker.Launcher
 {
@@ -22,7 +22,7 @@ namespace HypeTek.Bookmarker.Launcher
         [STAThread]
         private static int Main()
         {
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             string scriptPath = Path.Combine(baseDir, "ServerLauncher.ps1");
             string errorPath = Path.Combine(baseDir, "Error.txt");
 
@@ -38,6 +38,21 @@ namespace HypeTek.Bookmarker.Launcher
 
             try
             {
+                // Load the application source as host-provided PowerShell code instead of
+                // invoking the .ps1 file by path. This avoids a local user ExecutionPolicy
+                // (for example Restricted) blocking an application launched through our EXE.
+                // Enterprise controls such as AppLocker/WDAC are not bypassed by this.
+                string scriptSource = File.ReadAllText(scriptPath, Encoding.UTF8);
+                string escapedBaseDir = baseDir.Replace("'", "''");
+
+                // The original script normally gets its base path through $PSScriptRoot.
+                // AddScript() executes host-provided source rather than a script file, so
+                // $PSScriptRoot is empty. Replace only the known bootstrap assignment.
+                const string baseDirBootstrap = "$script:BaseDir = $PSScriptRoot";
+                string hostedBootstrap = "$script:BaseDir = '" + escapedBaseDir + "'";
+                if (scriptSource.Contains(baseDirBootstrap))
+                    scriptSource = scriptSource.Replace(baseDirBootstrap, hostedBootstrap);
+
                 InitialSessionState state = InitialSessionState.CreateDefault();
                 using (Runspace runspace = RunspaceFactory.CreateRunspace(state))
                 {
@@ -48,8 +63,7 @@ namespace HypeTek.Bookmarker.Launcher
                     using (PowerShell ps = PowerShell.Create())
                     {
                         ps.Runspace = runspace;
-                        string escaped = scriptPath.Replace("'", "''");
-                        ps.AddScript("& '" + escaped + "'");
+                        ps.AddScript(scriptSource);
                         ps.Invoke();
 
                         if (ps.HadErrors)
