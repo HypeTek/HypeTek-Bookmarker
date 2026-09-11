@@ -108,7 +108,7 @@ jobs:
           $source = [System.Drawing.Image]::FromFile((Resolve-Path 'resources\bookmarker-icon.png'))
           try {
             function Save-FitPng([string]$Path,[int]$Width,[int]$Height) {
-              $bmp = New-Object System.Drawing.Bitmap -ArgumentList $Width,$Height,[System.Drawing.Imaging.PixelFormat]::Format32bppArgb
+              $bmp = New-Object System.Drawing.Bitmap($Width,$Height)
               $g = [System.Drawing.Graphics]::FromImage($bmp)
               try {
                 $g.Clear([System.Drawing.Color]::Transparent)
