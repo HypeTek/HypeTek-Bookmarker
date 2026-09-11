@@ -9,14 +9,14 @@
   <Identity
     Name="HypeTek.Bookmarker.Dev"
     Publisher="CN=HypeTek Development"
-    Version="3.7.2.0"
+    Version="3.7.2.1"
     ProcessorArchitecture="x64" />
 
   <Properties>
     <DisplayName>HypeTek Bookmarker</DisplayName>
     <PublisherDisplayName>HypeTek</PublisherDisplayName>
     <Description>Bookmark launcher for servers, NAS systems and web interfaces.</Description>
-    <Logo>Assets\StoreLogo.png</Logo>
+    <Logo>Assets\HBStoreLogo.png</Logo>
   </Properties>
 
   <Resources>
@@ -38,15 +38,14 @@
         DisplayName="HypeTek Bookmarker"
         Description="Bookmark launcher for servers, NAS systems and web interfaces."
         BackgroundColor="transparent"
-        Square150x150Logo="Assets\Square150x150Logo.png"
-        Square44x44Logo="Assets\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        Square150x150Logo="Assets\HBLogo150.png"
+        Square44x44Logo="Assets\HBLogo44.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\HBWide310x150.png" />
       </uap:VisualElements>
     </Application>
   </Applications>
 
   <Capabilities>
-    <!-- Required for packaged Win32 desktop applications. No allowElevation capability is declared. -->
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
 </Package>

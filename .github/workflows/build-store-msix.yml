@@ -18,7 +18,7 @@ jobs:
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Test-Syntax.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Store parser/contract test failed.' }
 
-      - name: Validate Store manifests and product icon source
+      - name: Validate Store manifests and icon resources
         shell: powershell
         run: |
           $manifest = Get-Content .\src\app.store.manifest -Raw
@@ -26,11 +26,16 @@ jobs:
           if ($manifest -match 'requestedExecutionLevel\s+level="requireAdministrator"') { throw 'Store EXE manifest must not require administrator.' }
           if ($manifest -notmatch '<dpiAware[^>]*>\s*true/pm\s*</dpiAware>') { throw 'Legacy per-monitor DPI declaration missing.' }
           if ($manifest -notmatch '<dpiAwareness[^>]*>\s*PerMonitorV2\s*</dpiAwareness>') { throw 'PerMonitorV2 DPI declaration missing.' }
+
           $packageManifest = Get-Content .\store\AppxManifest.xml -Raw
           if ($packageManifest -notmatch 'Name="HypeTek.Bookmarker.Dev"') { throw 'Unexpected development package identity.' }
+          if ($packageManifest -notmatch 'Version="3\.7\.2\.1"') { throw 'Run #10 package version must be 3.7.2.1.' }
+          if ($packageManifest -notmatch 'Square44x44Logo="Assets\\HBLogo44\.png"') { throw 'Run #10 HBLogo44 manifest path missing.' }
           if ($packageManifest -notmatch '<rescap:Capability\s+Name="runFullTrust"') { throw 'runFullTrust capability missing.' }
           if ($packageManifest -match '<rescap:Capability\s+Name="allowElevation"') { throw 'Store package must not declare allowElevation.' }
+
           if (-not (Test-Path .\resources\bookmarker-icon.png)) { throw 'Dedicated HypeTek Bookmarker icon source is missing.' }
+          if (-not (Test-Path .\resources\app.ico)) { throw 'Multi-size HypeTek Bookmarker ICO is missing.' }
 
       - name: Build non-elevated x64 EXE
         shell: powershell
@@ -42,41 +47,8 @@ jobs:
           if (-not $automation) { $automation = Get-ChildItem "$env:WINDIR\assembly\GAC_MSIL\System.Management.Automation" -Recurse -Filter System.Management.Automation.dll -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName }
           if (-not $automation) { throw 'Windows PowerShell System.Management.Automation.dll not found in the GAC' }
 
-          # Build a minimal standards-compliant ICO container from the dedicated 128x128 PNG.
-          # The PNG is the visual master so EXE/WPF/MSIX all share the same HB artwork.
-          Add-Type -AssemblyName System.Drawing
-          $iconSource = [System.Drawing.Image]::FromFile((Resolve-Path '.\resources\bookmarker-icon.png'))
-          try {
-            if ($iconSource.Width -ne 128 -or $iconSource.Height -ne 128) {
-              throw "Bookmarker icon source must be 128x128 for this Store build. Actual: $($iconSource.Width)x$($iconSource.Height)"
-            }
-          } finally { $iconSource.Dispose() }
-
-          $pngBytes = [System.IO.File]::ReadAllBytes((Resolve-Path '.\resources\bookmarker-icon.png'))
-          $icoPath = Join-Path $PWD 'dist\bookmarker-store.ico'
-          $stream = [System.IO.File]::Create($icoPath)
-          $writer = New-Object System.IO.BinaryWriter($stream)
-          try {
-            $writer.Write([UInt16]0)
-            $writer.Write([UInt16]1)
-            $writer.Write([UInt16]1)
-            $writer.Write([Byte]128)
-            $writer.Write([Byte]128)
-            $writer.Write([Byte]0)
-            $writer.Write([Byte]0)
-            $writer.Write([UInt16]1)
-            $writer.Write([UInt16]32)
-            $writer.Write([UInt32]$pngBytes.Length)
-            $writer.Write([UInt32]22)
-            $writer.Write($pngBytes)
-          }
-          finally {
-            $writer.Dispose()
-            $stream.Dispose()
-          }
-
           & $csc /nologo /target:winexe /platform:x64 /optimize+ `
-            /win32icon:dist\bookmarker-store.ico /win32manifest:src\app.store.manifest `
+            /win32icon:resources\app.ico /win32manifest:src\app.store.manifest `
             /out:dist\HypeTek-Bookmarker.exe /reference:System.dll /reference:System.Core.dll `
             /reference:System.Windows.Forms.dll /reference:"$automation" src\BookmarkerLauncher.cs
           if ($LASTEXITCODE -ne 0) { throw "C# compiler failed with exit code $LASTEXITCODE" }
@@ -91,9 +63,8 @@ jobs:
           $embedded = Get-Content .\dist\HypeTek-Bookmarker.embedded.manifest -Raw
           if ($embedded -notmatch 'requestedExecutionLevel\s+level="asInvoker"') { throw 'Built EXE lost asInvoker.' }
           if ($embedded -notmatch '<dpiAwareness[^>]*>\s*PerMonitorV2') { throw 'Built EXE lost PerMonitorV2.' }
-          Write-Host 'Embedded EXE manifest contains asInvoker and PerMonitorV2.' -ForegroundColor Green
 
-      - name: Stage MSIX payload and transparent HB assets
+      - name: Stage MSIX payload and unplated HB icon assets
         shell: powershell
         run: |
           Add-Type -AssemblyName System.Drawing
@@ -102,12 +73,11 @@ jobs:
           Copy-Item dist\HypeTek-Bookmarker.exe "$stage\HypeTek-Bookmarker.exe"
           Copy-Item ServerLauncher.ps1 "$stage\ServerLauncher.ps1"
           Copy-Item resources\* "$stage\resources\" -Recurse -Force
-          Copy-Item dist\bookmarker-store.ico "$stage\resources\app.ico" -Force
           Copy-Item store\AppxManifest.xml "$stage\AppxManifest.xml"
 
           $source = [System.Drawing.Image]::FromFile((Resolve-Path 'resources\bookmarker-icon.png'))
           try {
-            function Save-FitPng([string]$Path,[int]$Width,[int]$Height) {
+            function Save-FitPng([string]$Path,[int]$Width,[int]$Height,[double]$Fill) {
               $bmp = New-Object System.Drawing.Bitmap($Width,$Height)
               $g = [System.Drawing.Graphics]::FromImage($bmp)
               try {
@@ -117,8 +87,7 @@ jobs:
                 $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
                 $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
                 $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-                $fill = if ($Width -eq $Height) { 0.90 } else { 0.76 }
-                $scale = [Math]::Min(($Width * $fill) / [double]$source.Width, ($Height * $fill) / [double]$source.Height)
+                $scale = [Math]::Min(($Width * $Fill) / [double]$source.Width, ($Height * $Fill) / [double]$source.Height)
                 $w = [Math]::Max(1,[int]($source.Width * $scale))
                 $h = [Math]::Max(1,[int]($source.Height * $scale))
                 $x = [int](($Width-$w)/2)
@@ -127,26 +96,46 @@ jobs:
                 $bmp.Save($Path,[System.Drawing.Imaging.ImageFormat]::Png)
               } finally { $g.Dispose(); $bmp.Dispose() }
             }
-            Save-FitPng "$stage\Assets\StoreLogo.png" 50 50
-            Save-FitPng "$stage\Assets\Square44x44Logo.png" 44 44
-            Save-FitPng "$stage\Assets\Square150x150Logo.png" 150 150
-            Save-FitPng "$stage\Assets\Wide310x150Logo.png" 310 150
+
+            Save-FitPng "$stage\Assets\HBStoreLogo.png" 50 50 0.96
+            Save-FitPng "$stage\Assets\HBLogo44.png" 44 44 0.98
+            Save-FitPng "$stage\Assets\HBLogo150.png" 150 150 0.94
+            Save-FitPng "$stage\Assets\HBWide310x150.png" 310 150 0.82
+
+            foreach ($spec in @(@(100,44),@(125,55),@(150,66),@(200,88),@(400,176))) {
+              $scaleName = $spec[0]; $px = $spec[1]
+              Save-FitPng "$stage\Assets\HBLogo44.scale-$scaleName.png" $px $px 0.98
+            }
+
+            foreach ($px in @(16,20,24,32,40,44,48,64,96,256)) {
+              Save-FitPng "$stage\Assets\HBLogo44.targetsize-$px.png" $px $px 0.99
+              Save-FitPng "$stage\Assets\HBLogo44.targetsize-${px}_altform-unplated.png" $px $px 0.99
+            }
           } finally { $source.Dispose() }
 
-          # Guard against accidentally reintroducing an opaque/black tile background.
-          foreach ($asset in @('StoreLogo.png','Square44x44Logo.png','Square150x150Logo.png','Wide310x150Logo.png')) {
-            $img = [System.Drawing.Bitmap]::FromFile((Join-Path "$stage\Assets" $asset))
+          $requiredAssets = @(
+            'HBStoreLogo.png','HBLogo44.png','HBLogo150.png','HBWide310x150.png',
+            'HBLogo44.targetsize-16_altform-unplated.png',
+            'HBLogo44.targetsize-24_altform-unplated.png',
+            'HBLogo44.targetsize-32_altform-unplated.png',
+            'HBLogo44.targetsize-48_altform-unplated.png',
+            'HBLogo44.targetsize-256_altform-unplated.png'
+          )
+          foreach ($asset in $requiredAssets) {
+            $path = Join-Path "$stage\Assets" $asset
+            if (-not (Test-Path $path)) { throw "Missing Run #10 asset: $asset" }
+            $img = [System.Drawing.Bitmap]::FromFile($path)
             try {
               if ($img.GetPixel(0,0).A -ne 0) { throw "$asset corner is not transparent." }
             } finally { $img.Dispose() }
           }
 
-      - name: Pack MSIX
+      - name: Pack MSIX 3.7.2.1
         shell: powershell
         run: |
           $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $makeappx) { throw 'makeappx.exe not found' }
-          & $makeappx pack /d dist\msix-stage /p dist\HypeTek-Bookmarker-v3.7.2-Store-Test.msix /o
+          & $makeappx pack /d dist\msix-stage /p dist\HypeTek-Bookmarker-v3.7.2.1-Store-Test.msix /o
           if ($LASTEXITCODE -ne 0) { throw "MakeAppx failed: $LASTEXITCODE" }
 
       - name: Sign and verify MSIX with ephemeral development certificate
@@ -158,10 +147,10 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath dist\HypeTek-Bookmarker-Store-Test.pfx -Password $password | Out-Null
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $signtool) { throw 'signtool.exe not found' }
-          & $signtool sign /fd SHA256 /f dist\HypeTek-Bookmarker-Store-Test.pfx /p $passwordText /v dist\HypeTek-Bookmarker-v3.7.2-Store-Test.msix
+          & $signtool sign /fd SHA256 /f dist\HypeTek-Bookmarker-Store-Test.pfx /p $passwordText /v dist\HypeTek-Bookmarker-v3.7.2.1-Store-Test.msix
           if ($LASTEXITCODE -ne 0) { throw "SignTool failed: $LASTEXITCODE" }
           Import-Certificate -FilePath dist\HypeTek-Bookmarker-Store-Test.cer -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
-          & $signtool verify /pa /v dist\HypeTek-Bookmarker-v3.7.2-Store-Test.msix
+          & $signtool verify /pa /v dist\HypeTek-Bookmarker-v3.7.2.1-Store-Test.msix
           if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $LASTEXITCODE" }
           Remove-Item dist\HypeTek-Bookmarker-Store-Test.pfx -Force
           Copy-Item store\Install-StoreTest.ps1 dist\Install-StoreTest.ps1
@@ -174,7 +163,7 @@ jobs:
         with:
           name: HypeTek-Bookmarker-Store-Test
           path: |
-            dist/HypeTek-Bookmarker-v3.7.2-Store-Test.msix
+            dist/HypeTek-Bookmarker-v3.7.2.1-Store-Test.msix
             dist/HypeTek-Bookmarker-Store-Test.cer
             dist/Install-StoreTest.ps1
             dist/Run-WackLocal.ps1
