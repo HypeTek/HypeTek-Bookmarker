@@ -21,6 +21,26 @@ This Store path deliberately includes the problems already discovered on HypeTek
 - runtime DPI probe included with the test artifact
 - ephemeral development certificate for sideload testing only
 
+## Product icon / Store visuals
+
+The Store branch now has a dedicated **HB (HypeTek Bookmarker)** product icon at:
+
+`resources/bookmarker-icon.png`
+
+This PNG is the visual master for the packaged app:
+
+- CI wraps the PNG in an ICO container for the compiled EXE icon.
+- The native launcher applies the same PNG to the WPF main window and dialogs.
+- Store/MSIX tile assets are generated from the same source during CI.
+
+This keeps Explorer/EXE, taskbar/window chrome and Store visuals consistent and avoids the ICO-to-bitmap conversion problem found in the first packaging experiment.
+
+`Build Store Test MSIX` run #5 validates this icon path end-to-end. Parser/contract checks, manifest validation, x64 EXE compilation, embedded-manifest verification, Store asset generation, MSIX packaging, signing, signature verification and artifact upload all pass.
+
+Run #5 artifact digest:
+
+`sha256:943648805496c44124bdc00f46508a6abff8dd2af09546caee45b4bd89acdff1`
+
 ## Compatibility
 
 The PowerShell core already detects a protected/read-only program directory. Inside `C:\Program Files\WindowsApps`, its write probe fails by design and it falls back to the existing compatibility data path:
@@ -49,11 +69,12 @@ These are development-only values. Do not finalize Store identity until the Hype
 2. Extract the complete ZIP.
 3. Run `Install-StoreTest.ps1` from an elevated Windows PowerShell 5.1 session.
 4. Launch **HypeTek Bookmarker** normally from Start.
-5. Smoke-test existing entries, adding/editing/deleting an entry, drag-and-drop ordering, settings/wallpaper and opening at least one address in the default browser.
-6. Leave the app open and run `Test-DpiAwareness.ps1` from a normal PowerShell session. Target: `PerMonitorV2` / PASS.
-7. Close the app.
-8. Run `Run-WackLocal.ps1` from elevated Windows PowerShell 5.1.
-9. Review/upload the generated WACK XML.
+5. Confirm the new HB icon appears in Start/taskbar/window chrome.
+6. Smoke-test existing entries, adding/editing/deleting an entry, drag-and-drop ordering, settings/wallpaper and opening at least one address in the default browser.
+7. Leave the app open and run `Test-DpiAwareness.ps1` from a normal PowerShell session. Target: `PerMonitorV2` / PASS.
+8. Close the app.
+9. Run `Run-WackLocal.ps1` from elevated Windows PowerShell 5.1.
+10. Review/upload the generated WACK XML.
 
 ## Store-readiness checklist
 
@@ -68,10 +89,14 @@ These are development-only values. Do not finalize Store identity until the Hype
 - [x] Existing per-user Bookmarker data path retained for compatibility.
 - [x] PowerShell helper/parser checks in CI.
 - [x] CI verifies the manifest embedded in the final EXE.
+- [x] Dedicated HB Bookmarker icon source added.
+- [x] EXE/WPF/Store visuals derive from the same HB icon source.
+- [x] HB icon Store build passes CI end-to-end (run #5).
 - [x] Ephemeral sideload certificate/signing path.
 - [x] Local WACK runner prepared.
 - [x] Runtime DPI probe prepared.
 - [ ] Store-test MSIX installs and launches on real Windows 11 hardware.
+- [ ] New HB icon confirmed in Start/taskbar/window chrome on real hardware.
 - [ ] Existing entries/settings load in packaged build.
 - [ ] Add/edit/delete/reorder persistence confirmed after restart.
 - [ ] Default-browser launch confirmed from packaged build.
