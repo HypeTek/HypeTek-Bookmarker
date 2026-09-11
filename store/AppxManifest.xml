@@ -9,14 +9,14 @@
   <Identity
     Name="HypeTek.Bookmarker.Dev"
     Publisher="CN=HypeTek Development"
-    Version="3.7.2.1"
+    Version="3.7.2.2"
     ProcessorArchitecture="x64" />
 
   <Properties>
     <DisplayName>HypeTek Bookmarker</DisplayName>
     <PublisherDisplayName>HypeTek</PublisherDisplayName>
     <Description>Bookmark launcher for servers, NAS systems and web interfaces.</Description>
-    <Logo>Assets\HBStoreLogo.png</Logo>
+    <Logo>Assets\HB12StoreLogo.png</Logo>
   </Properties>
 
   <Resources>
@@ -38,9 +38,9 @@
         DisplayName="HypeTek Bookmarker"
         Description="Bookmark launcher for servers, NAS systems and web interfaces."
         BackgroundColor="transparent"
-        Square150x150Logo="Assets\HBLogo150.png"
-        Square44x44Logo="Assets\HBLogo44.png">
-        <uap:DefaultTile Wide310x150Logo="Assets\HBWide310x150.png" />
+        Square150x150Logo="Assets\HB12Logo150.png"
+        Square44x44Logo="Assets\HB12Logo44.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\HB12Wide310x150.png" />
       </uap:VisualElements>
     </Application>
   </Applications>
