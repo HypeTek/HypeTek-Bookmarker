@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("HypeTek Bookmarker")]
 [assembly: AssemblyProduct("HypeTek Bookmarker")]
@@ -19,12 +20,54 @@ namespace HypeTek.Bookmarker.Launcher
 {
     internal static class Program
     {
+        private static readonly IntPtr DpiAwarenessContextPerMonitorAwareV2 = new IntPtr(-4);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+        private static void TryEnablePerMonitorV2Dpi()
+        {
+            try
+            {
+                // The Store manifest is the primary declaration. This early call gives
+                // Windows a second, explicit PerMonitorV2 signal before WPF/UI creation.
+                // If the manifest already established the process context, Windows may
+                // reject the duplicate call; that is expected and does not change it.
+                SetProcessDpiAwarenessContext(DpiAwarenessContextPerMonitorAwareV2);
+            }
+            catch (EntryPointNotFoundException)
+            {
+                // Defensive fallback for Windows versions older than the Store target.
+            }
+        }
+
+        private static string GetStartupLogPath(string baseDir)
+        {
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (!String.IsNullOrWhiteSpace(localAppData))
+                {
+                    string logDir = Path.Combine(localAppData, "HypeTek", "Bookmarker", "logs");
+                    Directory.CreateDirectory(logDir);
+                    return Path.Combine(logDir, "startup.log");
+                }
+            }
+            catch { }
+
+            // Portable/native fallback. The Store package should normally use LocalAppData.
+            return Path.Combine(baseDir, "Error.txt");
+        }
+
         [STAThread]
         private static int Main()
         {
+            TryEnablePerMonitorV2Dpi();
+
             string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             string scriptPath = Path.Combine(baseDir, "ServerLauncher.ps1");
-            string errorPath = Path.Combine(baseDir, "Error.txt");
+            string errorPath = GetStartupLogPath(baseDir);
 
             if (!File.Exists(scriptPath))
             {
@@ -123,7 +166,7 @@ namespace HypeTek.Bookmarker.Launcher
                 catch { }
 
                 MessageBox.Show(
-                    "HypeTek Bookmarker could not be started. Details were written to Error.txt.",
+                    "HypeTek Bookmarker could not be started. Details were written to the per-user startup log.",
                     "HypeTek Bookmarker",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
