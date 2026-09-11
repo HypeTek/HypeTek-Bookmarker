@@ -96,12 +96,12 @@ namespace HypeTek.Bookmarker.Launcher
                 if (scriptSource.Contains(baseDirBootstrap))
                     scriptSource = scriptSource.Replace(baseDirBootstrap, hostedBootstrap);
 
-                // Add the HypeTek icon to the WPF main window without modifying the legacy
-                // PowerShell core file. This keeps Code -> Download ZIP compatible while the
-                // native EXE remains responsible for the user-facing application identity.
+                // Add the dedicated HypeTek Bookmarker HB icon to the WPF main window
+                // without modifying the legacy PowerShell core file. The Store build also
+                // derives the executable and MSIX visual assets from this same PNG source.
                 const string mainWindowAnchor = "$window=[System.Windows.Markup.XamlReader]::Load($reader);$script:Window=$window";
                 string mainWindowWithIcon = mainWindowAnchor + Environment.NewLine +
-                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'app.ico'" + Environment.NewLine +
+                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'bookmarker-icon.png'" + Environment.NewLine +
                     "    if(Test-Path -LiteralPath $appIconPath){" + Environment.NewLine +
                     "        try{" + Environment.NewLine +
                     "            $appIconUri=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
@@ -111,12 +111,12 @@ namespace HypeTek.Bookmarker.Launcher
                 if (scriptSource.Contains(mainWindowAnchor))
                     scriptSource = scriptSource.Replace(mainWindowAnchor, mainWindowWithIcon);
 
-                // Apply the same icon to settings/add/edit dialogs.
+                // Apply the same product icon to settings/add/edit dialogs.
                 const string dialogAnchor = "    if ($script:Window) { $w.Owner=$script:Window }\r\n    return $w";
                 const string dialogAnchorLf = "    if ($script:Window) { $w.Owner=$script:Window }\n    return $w";
                 string dialogWithIcon =
                     "    if ($script:Window) { $w.Owner=$script:Window }" + Environment.NewLine +
-                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'app.ico'" + Environment.NewLine +
+                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'bookmarker-icon.png'" + Environment.NewLine +
                     "    if(Test-Path -LiteralPath $appIconPath){" + Environment.NewLine +
                     "        try{" + Environment.NewLine +
                     "            $appIconUri=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
