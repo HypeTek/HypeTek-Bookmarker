@@ -18,7 +18,7 @@ jobs:
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Test-Syntax.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Store parser/contract test failed.' }
 
-      - name: Validate Store manifests
+      - name: Validate Store manifests and product icon source
         shell: powershell
         run: |
           $manifest = Get-Content .\src\app.store.manifest -Raw
@@ -30,6 +30,7 @@ jobs:
           if ($packageManifest -notmatch 'Name="HypeTek.Bookmarker.Dev"') { throw 'Unexpected development package identity.' }
           if ($packageManifest -notmatch '<rescap:Capability\s+Name="runFullTrust"') { throw 'runFullTrust capability missing.' }
           if ($packageManifest -match '<rescap:Capability\s+Name="allowElevation"') { throw 'Store package must not declare allowElevation.' }
+          if (-not (Test-Path .\resources\bookmarker-icon.png)) { throw 'Dedicated HypeTek Bookmarker icon source is missing.' }
 
       - name: Build non-elevated x64 EXE
         shell: powershell
@@ -40,8 +41,35 @@ jobs:
           $automation = Get-ChildItem "$env:WINDIR\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation" -Recurse -Filter System.Management.Automation.dll -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
           if (-not $automation) { $automation = Get-ChildItem "$env:WINDIR\assembly\GAC_MSIL\System.Management.Automation" -Recurse -Filter System.Management.Automation.dll -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName }
           if (-not $automation) { throw 'Windows PowerShell System.Management.Automation.dll not found in the GAC' }
+
+          # Build a minimal standards-compliant ICO container from the dedicated PNG.
+          # Windows supports PNG-compressed image data inside ICO resources; keeping the
+          # PNG as the design master means EXE/WPF/MSIX visuals all derive from one source.
+          $pngBytes = [System.IO.File]::ReadAllBytes((Resolve-Path '.\resources\bookmarker-icon.png'))
+          $icoPath = Join-Path $PWD 'dist\bookmarker-store.ico'
+          $stream = [System.IO.File]::Create($icoPath)
+          $writer = New-Object System.IO.BinaryWriter($stream)
+          try {
+            $writer.Write([UInt16]0)      # reserved
+            $writer.Write([UInt16]1)      # icon type
+            $writer.Write([UInt16]1)      # one image
+            $writer.Write([Byte]128)      # width
+            $writer.Write([Byte]128)      # height
+            $writer.Write([Byte]0)        # palette
+            $writer.Write([Byte]0)        # reserved
+            $writer.Write([UInt16]1)      # planes
+            $writer.Write([UInt16]32)     # bit depth
+            $writer.Write([UInt32]$pngBytes.Length)
+            $writer.Write([UInt32]22)     # image offset: 6-byte header + 16-byte entry
+            $writer.Write($pngBytes)
+          }
+          finally {
+            $writer.Dispose()
+            $stream.Dispose()
+          }
+
           & $csc /nologo /target:winexe /platform:x64 /optimize+ `
-            /win32icon:resources\app.ico /win32manifest:src\app.store.manifest `
+            /win32icon:dist\bookmarker-store.ico /win32manifest:src\app.store.manifest `
             /out:dist\HypeTek-Bookmarker.exe /reference:System.dll /reference:System.Core.dll `
             /reference:System.Windows.Forms.dll /reference:"$automation" src\BookmarkerLauncher.cs
           if ($LASTEXITCODE -ne 0) { throw "C# compiler failed with exit code $LASTEXITCODE" }
@@ -69,7 +97,8 @@ jobs:
           Copy-Item resources\* "$stage\resources\" -Recurse -Force
           Copy-Item store\AppxManifest.xml "$stage\AppxManifest.xml"
 
-          $source = [System.Drawing.Image]::FromFile((Resolve-Path 'resources\header-logo.png'))
+          # The dedicated HB icon is the single visual source for all Store tiles/logos.
+          $source = [System.Drawing.Image]::FromFile((Resolve-Path 'resources\bookmarker-icon.png'))
           try {
             function Save-FitPng([string]$Path,[int]$Width,[int]$Height) {
               $bmp = New-Object System.Drawing.Bitmap $Width,$Height
@@ -77,7 +106,7 @@ jobs:
               try {
                 $g.Clear([System.Drawing.Color]::Black)
                 $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-                $scale = [Math]::Min($Width / [double]$source.Width, $Height / [double]$source.Height)
+                $scale = [Math]::Min(($Width * 0.72) / [double]$source.Width, ($Height * 0.72) / [double]$source.Height)
                 $w = [Math]::Max(1,[int]($source.Width * $scale))
                 $h = [Math]::Max(1,[int]($source.Height * $scale))
                 $x = [int](($Width-$w)/2); $y = [int](($Height-$h)/2)
