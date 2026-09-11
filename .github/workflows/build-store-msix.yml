@@ -35,9 +35,8 @@ jobs:
           if ($packageManifest -match '<rescap:Capability\s+Name="allowElevation"') { throw 'Store package must not declare allowElevation.' }
 
           if (-not (Test-Path .\resources\bookmarker-icon.png)) { throw 'Dedicated HypeTek Bookmarker icon source is missing.' }
-          if (-not (Test-Path .\resources\app.ico)) { throw 'Multi-size HypeTek Bookmarker ICO is missing.' }
 
-      - name: Build non-elevated x64 EXE
+      - name: Build non-elevated x64 EXE with multi-size transparent ICO
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
@@ -47,8 +46,66 @@ jobs:
           if (-not $automation) { $automation = Get-ChildItem "$env:WINDIR\assembly\GAC_MSIL\System.Management.Automation" -Recurse -Filter System.Management.Automation.dll -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName }
           if (-not $automation) { throw 'Windows PowerShell System.Management.Automation.dll not found in the GAC' }
 
+          Add-Type -AssemblyName System.Drawing
+          $iconSource = [System.Drawing.Image]::FromFile((Resolve-Path '.\resources\bookmarker-icon.png'))
+          $sizes = @(16,20,24,32,40,48,64,96,128,256)
+          $images = @()
+          try {
+            foreach ($size in $sizes) {
+              $bmp = New-Object System.Drawing.Bitmap($size,$size)
+              $g = [System.Drawing.Graphics]::FromImage($bmp)
+              try {
+                $g.Clear([System.Drawing.Color]::Transparent)
+                $g.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceOver
+                $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+                $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+                $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+                $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+                $fill = if ($size -le 24) { 0.99 } elseif ($size -le 48) { 0.97 } else { 0.94 }
+                $scale = [Math]::Min(($size * $fill) / [double]$iconSource.Width, ($size * $fill) / [double]$iconSource.Height)
+                $w = [Math]::Max(1,[int]($iconSource.Width * $scale))
+                $h = [Math]::Max(1,[int]($iconSource.Height * $scale))
+                $x = [int](($size-$w)/2)
+                $y = [int](($size-$h)/2)
+                $g.DrawImage($iconSource,$x,$y,$w,$h)
+                $ms = New-Object System.IO.MemoryStream
+                $bmp.Save($ms,[System.Drawing.Imaging.ImageFormat]::Png)
+                $images += ,@($size,$ms.ToArray())
+                $ms.Dispose()
+              } finally { $g.Dispose(); $bmp.Dispose() }
+            }
+          } finally { $iconSource.Dispose() }
+
+          $icoPath = Join-Path $PWD 'dist\bookmarker-store.ico'
+          $stream = [System.IO.File]::Create($icoPath)
+          $writer = New-Object System.IO.BinaryWriter($stream)
+          try {
+            $writer.Write([UInt16]0)
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]$images.Count)
+            $offset = 6 + (16 * $images.Count)
+            foreach ($entry in $images) {
+              $size = [int]$entry[0]
+              $bytes = [byte[]]$entry[1]
+              $dim = if ($size -eq 256) { [byte]0 } else { [byte]$size }
+              $writer.Write($dim)
+              $writer.Write($dim)
+              $writer.Write([byte]0)
+              $writer.Write([byte]0)
+              $writer.Write([UInt16]1)
+              $writer.Write([UInt16]32)
+              $writer.Write([UInt32]$bytes.Length)
+              $writer.Write([UInt32]$offset)
+              $offset += $bytes.Length
+            }
+            foreach ($entry in $images) { $writer.Write([byte[]]$entry[1]) }
+          } finally {
+            $writer.Dispose()
+            $stream.Dispose()
+          }
+
           & $csc /nologo /target:winexe /platform:x64 /optimize+ `
-            /win32icon:resources\app.ico /win32manifest:src\app.store.manifest `
+            /win32icon:dist\bookmarker-store.ico /win32manifest:src\app.store.manifest `
             /out:dist\HypeTek-Bookmarker.exe /reference:System.dll /reference:System.Core.dll `
             /reference:System.Windows.Forms.dll /reference:"$automation" src\BookmarkerLauncher.cs
           if ($LASTEXITCODE -ne 0) { throw "C# compiler failed with exit code $LASTEXITCODE" }
@@ -73,6 +130,7 @@ jobs:
           Copy-Item dist\HypeTek-Bookmarker.exe "$stage\HypeTek-Bookmarker.exe"
           Copy-Item ServerLauncher.ps1 "$stage\ServerLauncher.ps1"
           Copy-Item resources\* "$stage\resources\" -Recurse -Force
+          Copy-Item dist\bookmarker-store.ico "$stage\resources\app.ico" -Force
           Copy-Item store\AppxManifest.xml "$stage\AppxManifest.xml"
 
           $source = [System.Drawing.Image]::FromFile((Resolve-Path 'resources\bookmarker-icon.png'))
