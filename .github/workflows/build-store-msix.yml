@@ -42,25 +42,32 @@ jobs:
           if (-not $automation) { $automation = Get-ChildItem "$env:WINDIR\assembly\GAC_MSIL\System.Management.Automation" -Recurse -Filter System.Management.Automation.dll -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName }
           if (-not $automation) { throw 'Windows PowerShell System.Management.Automation.dll not found in the GAC' }
 
-          # Build a minimal standards-compliant ICO container from the dedicated PNG.
-          # Windows supports PNG-compressed image data inside ICO resources; keeping the
-          # PNG as the design master means EXE/WPF/MSIX visuals all derive from one source.
+          # Build a minimal standards-compliant ICO container from the dedicated 128x128 PNG.
+          # The PNG is the visual master so EXE/WPF/MSIX all share the same HB artwork.
+          Add-Type -AssemblyName System.Drawing
+          $iconSource = [System.Drawing.Image]::FromFile((Resolve-Path '.\resources\bookmarker-icon.png'))
+          try {
+            if ($iconSource.Width -ne 128 -or $iconSource.Height -ne 128) {
+              throw "Bookmarker icon source must be 128x128 for this Store build. Actual: $($iconSource.Width)x$($iconSource.Height)"
+            }
+          } finally { $iconSource.Dispose() }
+
           $pngBytes = [System.IO.File]::ReadAllBytes((Resolve-Path '.\resources\bookmarker-icon.png'))
           $icoPath = Join-Path $PWD 'dist\bookmarker-store.ico'
           $stream = [System.IO.File]::Create($icoPath)
           $writer = New-Object System.IO.BinaryWriter($stream)
           try {
-            $writer.Write([UInt16]0)      # reserved
-            $writer.Write([UInt16]1)      # icon type
-            $writer.Write([UInt16]1)      # one image
-            $writer.Write([Byte]128)      # width
-            $writer.Write([Byte]128)      # height
-            $writer.Write([Byte]0)        # palette
-            $writer.Write([Byte]0)        # reserved
-            $writer.Write([UInt16]1)      # planes
-            $writer.Write([UInt16]32)     # bit depth
+            $writer.Write([UInt16]0)
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]1)
+            $writer.Write([Byte]128)
+            $writer.Write([Byte]128)
+            $writer.Write([Byte]0)
+            $writer.Write([Byte]0)
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]32)
             $writer.Write([UInt32]$pngBytes.Length)
-            $writer.Write([UInt32]22)     # image offset: 6-byte header + 16-byte entry
+            $writer.Write([UInt32]22)
             $writer.Write($pngBytes)
           }
           finally {
@@ -86,7 +93,7 @@ jobs:
           if ($embedded -notmatch '<dpiAwareness[^>]*>\s*PerMonitorV2') { throw 'Built EXE lost PerMonitorV2.' }
           Write-Host 'Embedded EXE manifest contains asInvoker and PerMonitorV2.' -ForegroundColor Green
 
-      - name: Stage MSIX payload and assets
+      - name: Stage MSIX payload and transparent HB assets
         shell: powershell
         run: |
           Add-Type -AssemblyName System.Drawing
@@ -95,21 +102,27 @@ jobs:
           Copy-Item dist\HypeTek-Bookmarker.exe "$stage\HypeTek-Bookmarker.exe"
           Copy-Item ServerLauncher.ps1 "$stage\ServerLauncher.ps1"
           Copy-Item resources\* "$stage\resources\" -Recurse -Force
+          Copy-Item dist\bookmarker-store.ico "$stage\resources\app.ico" -Force
           Copy-Item store\AppxManifest.xml "$stage\AppxManifest.xml"
 
-          # The dedicated HB icon is the single visual source for all Store tiles/logos.
           $source = [System.Drawing.Image]::FromFile((Resolve-Path 'resources\bookmarker-icon.png'))
           try {
             function Save-FitPng([string]$Path,[int]$Width,[int]$Height) {
-              $bmp = New-Object System.Drawing.Bitmap $Width,$Height
+              $bmp = New-Object System.Drawing.Bitmap -ArgumentList $Width,$Height,[System.Drawing.Imaging.PixelFormat]::Format32bppArgb
               $g = [System.Drawing.Graphics]::FromImage($bmp)
               try {
-                $g.Clear([System.Drawing.Color]::Black)
+                $g.Clear([System.Drawing.Color]::Transparent)
+                $g.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceOver
+                $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
                 $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-                $scale = [Math]::Min(($Width * 0.72) / [double]$source.Width, ($Height * 0.72) / [double]$source.Height)
+                $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+                $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+                $fill = if ($Width -eq $Height) { 0.90 } else { 0.76 }
+                $scale = [Math]::Min(($Width * $fill) / [double]$source.Width, ($Height * $fill) / [double]$source.Height)
                 $w = [Math]::Max(1,[int]($source.Width * $scale))
                 $h = [Math]::Max(1,[int]($source.Height * $scale))
-                $x = [int](($Width-$w)/2); $y = [int](($Height-$h)/2)
+                $x = [int](($Width-$w)/2)
+                $y = [int](($Height-$h)/2)
                 $g.DrawImage($source,$x,$y,$w,$h)
                 $bmp.Save($Path,[System.Drawing.Imaging.ImageFormat]::Png)
               } finally { $g.Dispose(); $bmp.Dispose() }
@@ -119,6 +132,14 @@ jobs:
             Save-FitPng "$stage\Assets\Square150x150Logo.png" 150 150
             Save-FitPng "$stage\Assets\Wide310x150Logo.png" 310 150
           } finally { $source.Dispose() }
+
+          # Guard against accidentally reintroducing an opaque/black tile background.
+          foreach ($asset in @('StoreLogo.png','Square44x44Logo.png','Square150x150Logo.png','Wide310x150Logo.png')) {
+            $img = [System.Drawing.Bitmap]::FromFile((Join-Path "$stage\Assets" $asset))
+            try {
+              if ($img.GetPixel(0,0).A -ne 0) { throw "$asset corner is not transparent." }
+            } finally { $img.Dispose() }
+          }
 
       - name: Pack MSIX
         shell: powershell
