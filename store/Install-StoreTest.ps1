@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $cer = Join-Path $root 'HypeTek-Bookmarker-Store-Test.cer'
-$msix = Join-Path $root 'HypeTek-Bookmarker-v3.7.2.2-Store-Test.msix'
+$msix = Join-Path $root 'HypeTek-Bookmarker-v3.7.2.3-Store-Test.msix'
 $packageName = 'HypeTek.Bookmarker.Dev'
 $publisherSubject = 'CN=HypeTek Development'
 
@@ -37,5 +37,5 @@ Write-Host ('Trusted development certificate: {0}' -f $cert.Thumbprint)
 
 Add-AppxPackage -Path $msix
 Write-Host ''
-Write-Host 'MSIX 3.7.2.2 installed. Launch HypeTek Bookmarker from the Start menu.'
+Write-Host 'MSIX 3.7.2.3 installed. Launch HypeTek Bookmarker from the Start menu.'
 Write-Host 'Existing Bookmarker data under %LOCALAPPDATA%\HypeTek\ServerLauncher is intentionally retained.'
