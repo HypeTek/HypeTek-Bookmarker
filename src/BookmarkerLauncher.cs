@@ -13,8 +13,8 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCompany("HypeTek")]
 [assembly: AssemblyDescription("Native launcher host for HypeTek Bookmarker")]
 [assembly: AssemblyCopyright("Copyright © 2026 HypeTek")]
-[assembly: AssemblyVersion("3.7.2.2")]
-[assembly: AssemblyFileVersion("3.7.2.2")]
+[assembly: AssemblyVersion("3.7.2.3")]
+[assembly: AssemblyFileVersion("3.7.2.3")]
 
 namespace HypeTek.Bookmarker.Launcher
 {
@@ -30,15 +30,10 @@ namespace HypeTek.Bookmarker.Launcher
         {
             try
             {
-                // The Store manifest is the primary declaration. This early call gives
-                // Windows a second, explicit PerMonitorV2 signal before WPF/UI creation.
-                // If the manifest already established the process context, Windows may
-                // reject the duplicate call; that is expected and does not change it.
                 SetProcessDpiAwarenessContext(DpiAwarenessContextPerMonitorAwareV2);
             }
             catch (EntryPointNotFoundException)
             {
-                // Defensive fallback for Windows versions older than the Store target.
             }
         }
 
@@ -56,7 +51,6 @@ namespace HypeTek.Bookmarker.Launcher
             }
             catch { }
 
-            // Portable/native fallback. The Store package should normally use LocalAppData.
             return Path.Combine(baseDir, "Error.txt");
         }
 
@@ -81,46 +75,50 @@ namespace HypeTek.Bookmarker.Launcher
 
             try
             {
-                // Load the application source as host-provided PowerShell code instead of
-                // invoking the .ps1 file by path. This avoids a local user ExecutionPolicy
-                // (for example Restricted) blocking an application launched through our EXE.
-                // Enterprise controls such as AppLocker/WDAC are not bypassed by this.
                 string scriptSource = File.ReadAllText(scriptPath, Encoding.UTF8);
                 string escapedBaseDir = baseDir.Replace("'", "''");
 
-                // The original script normally gets its base path through $PSScriptRoot.
-                // AddScript() executes host-provided source rather than a script file, so
-                // $PSScriptRoot is empty. Replace only the known bootstrap assignment.
                 const string baseDirBootstrap = "$script:BaseDir = $PSScriptRoot";
                 string hostedBootstrap = "$script:BaseDir = '" + escapedBaseDir + "'";
                 if (scriptSource.Contains(baseDirBootstrap))
                     scriptSource = scriptSource.Replace(baseDirBootstrap, hostedBootstrap);
 
-                // Add the dedicated HypeTek Bookmarker HB icon to the WPF main window
-                // without modifying the legacy PowerShell core file. The Store build also
-                // derives the executable and MSIX visual assets from this same PNG source.
+                // Run #13: the live WPF window now uses the dedicated refined small icon.
+                // Windows' taskbar resolves the running window icon before falling back to
+                // the executable/package icon, so this targets the last remaining taskbar-only issue.
                 const string mainWindowAnchor = "$window=[System.Windows.Markup.XamlReader]::Load($reader);$script:Window=$window";
                 string mainWindowWithIcon = mainWindowAnchor + Environment.NewLine +
-                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'bookmarker-icon.png'" + Environment.NewLine +
+                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'bookmarker-icon-small.png'" + Environment.NewLine +
                     "    if(Test-Path -LiteralPath $appIconPath){" + Environment.NewLine +
                     "        try{" + Environment.NewLine +
-                    "            $appIconUri=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
-                    "            $window.Icon=[System.Windows.Media.Imaging.BitmapFrame]::Create($appIconUri)" + Environment.NewLine +
+                    "            $appIcon=New-Object System.Windows.Media.Imaging.BitmapImage" + Environment.NewLine +
+                    "            $appIcon.BeginInit()" + Environment.NewLine +
+                    "            $appIcon.CacheOption=[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad" + Environment.NewLine +
+                    "            $appIcon.DecodePixelWidth=64" + Environment.NewLine +
+                    "            $appIcon.UriSource=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
+                    "            $appIcon.EndInit()" + Environment.NewLine +
+                    "            $appIcon.Freeze()" + Environment.NewLine +
+                    "            $window.Icon=$appIcon" + Environment.NewLine +
                     "        }catch{}" + Environment.NewLine +
                     "    }";
                 if (scriptSource.Contains(mainWindowAnchor))
                     scriptSource = scriptSource.Replace(mainWindowAnchor, mainWindowWithIcon);
 
-                // Apply the same product icon to settings/add/edit dialogs.
                 const string dialogAnchor = "    if ($script:Window) { $w.Owner=$script:Window }\r\n    return $w";
                 const string dialogAnchorLf = "    if ($script:Window) { $w.Owner=$script:Window }\n    return $w";
                 string dialogWithIcon =
                     "    if ($script:Window) { $w.Owner=$script:Window }" + Environment.NewLine +
-                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'bookmarker-icon.png'" + Environment.NewLine +
+                    "    $appIconPath=Join-Path $script:BundledAssetsDir 'bookmarker-icon-small.png'" + Environment.NewLine +
                     "    if(Test-Path -LiteralPath $appIconPath){" + Environment.NewLine +
                     "        try{" + Environment.NewLine +
-                    "            $appIconUri=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
-                    "            $w.Icon=[System.Windows.Media.Imaging.BitmapFrame]::Create($appIconUri)" + Environment.NewLine +
+                    "            $appIcon=New-Object System.Windows.Media.Imaging.BitmapImage" + Environment.NewLine +
+                    "            $appIcon.BeginInit()" + Environment.NewLine +
+                    "            $appIcon.CacheOption=[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad" + Environment.NewLine +
+                    "            $appIcon.DecodePixelWidth=32" + Environment.NewLine +
+                    "            $appIcon.UriSource=New-Object System.Uri -ArgumentList $appIconPath" + Environment.NewLine +
+                    "            $appIcon.EndInit()" + Environment.NewLine +
+                    "            $appIcon.Freeze()" + Environment.NewLine +
+                    "            $w.Icon=$appIcon" + Environment.NewLine +
                     "        }catch{}" + Environment.NewLine +
                     "    }" + Environment.NewLine +
                     "    return $w";
