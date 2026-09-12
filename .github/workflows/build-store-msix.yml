@@ -18,7 +18,7 @@ jobs:
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Test-Syntax.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Store parser/contract test failed.' }
 
-      - name: Validate Store manifests and Run #12 icon resources
+      - name: Validate Run #13 Store and live taskbar icon contract
         shell: powershell
         run: |
           $manifest = Get-Content .\src\app.store.manifest -Raw
@@ -29,15 +29,20 @@ jobs:
 
           $packageManifest = Get-Content .\store\AppxManifest.xml -Raw
           if ($packageManifest -notmatch 'Name="HypeTek.Bookmarker.Dev"') { throw 'Unexpected development package identity.' }
-          if ($packageManifest -notmatch 'Version="3\.7\.2\.2"') { throw 'Run #12 package version must be 3.7.2.2.' }
-          if ($packageManifest -notmatch 'Square44x44Logo="Assets\\HB12Logo44\.png"') { throw 'Run #12 HB12Logo44 manifest path missing.' }
+          if ($packageManifest -notmatch 'Version="3\.7\.2\.3"') { throw 'Run #13 package version must be 3.7.2.3.' }
+          if ($packageManifest -notmatch 'Square44x44Logo="Assets\\HB12Logo44\.png"') { throw 'Expected HB12Logo44 manifest path missing.' }
           if ($packageManifest -notmatch '<rescap:Capability\s+Name="runFullTrust"') { throw 'runFullTrust capability missing.' }
           if ($packageManifest -match '<rescap:Capability\s+Name="allowElevation"') { throw 'Store package must not declare allowElevation.' }
 
-          if (-not (Test-Path .\resources\bookmarker-icon.png)) { throw 'Full HypeTek Bookmarker icon source is missing.' }
-          if (-not (Test-Path .\resources\bookmarker-icon-small.b64)) { throw 'Run #12 small-icon source is missing.' }
+          $launcher = Get-Content .\src\BookmarkerLauncher.cs -Raw
+          if ($launcher -notmatch 'AssemblyVersion\("3\.7\.2\.3"\)') { throw 'Run #13 launcher version missing.' }
+          if ($launcher -notmatch "bookmarker-icon-small\.png") { throw 'Run #13 live window must use the refined small icon.' }
+          if ($launcher -notmatch 'DecodePixelWidth=64') { throw 'Run #13 main-window taskbar decode width missing.' }
 
-      - name: Build non-elevated x64 EXE with refined small-size ICO
+          if (-not (Test-Path .\resources\bookmarker-icon.png)) { throw 'Full HypeTek Bookmarker icon source is missing.' }
+          if (-not (Test-Path .\resources\bookmarker-icon-small.b64)) { throw 'Refined small-icon source is missing.' }
+
+      - name: Build non-elevated x64 EXE with refined multi-size ICO
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
@@ -129,7 +134,7 @@ jobs:
           if ($embedded -notmatch 'requestedExecutionLevel\s+level="asInvoker"') { throw 'Built EXE lost asInvoker.' }
           if ($embedded -notmatch '<dpiAwareness[^>]*>\s*PerMonitorV2') { throw 'Built EXE lost PerMonitorV2.' }
 
-      - name: Stage MSIX payload and Run #12 unplated icon assets
+      - name: Stage MSIX payload and icon assets
         shell: powershell
         run: |
           Add-Type -AssemblyName System.Drawing
@@ -164,7 +169,6 @@ jobs:
               } finally { $g.Dispose(); $bmp.Dispose() }
             }
 
-            # New asset base names intentionally bust the Windows shell icon cache for this test.
             Save-FitPng $smallSource "$stage\Assets\HB12StoreLogo.png" 50 50 1.00
             Save-FitPng $smallSource "$stage\Assets\HB12Logo44.png" 44 44 1.00
             Save-FitPng $fullSource "$stage\Assets\HB12Logo150.png" 150 150 0.94
@@ -184,31 +188,22 @@ jobs:
             $fullSource.Dispose()
           }
 
-          $requiredAssets = @(
-            'HB12StoreLogo.png','HB12Logo44.png','HB12Logo150.png','HB12Wide310x150.png',
-            'HB12Logo44.targetsize-16_altform-unplated.png',
-            'HB12Logo44.targetsize-24_altform-unplated.png',
-            'HB12Logo44.targetsize-32_altform-unplated.png',
-            'HB12Logo44.targetsize-48_altform-unplated.png',
-            'HB12Logo44.targetsize-256_altform-unplated.png'
-          )
-          foreach ($asset in $requiredAssets) {
+          if (-not (Test-Path "$stage\resources\bookmarker-icon-small.png")) { throw 'Run #13 runtime small icon was not staged.' }
+          foreach ($asset in @('HB12StoreLogo.png','HB12Logo44.png','HB12Logo150.png','HB12Wide310x150.png','HB12Logo44.targetsize-24_altform-unplated.png','HB12Logo44.targetsize-32_altform-unplated.png','HB12Logo44.targetsize-48_altform-unplated.png')) {
             $path = Join-Path "$stage\Assets" $asset
-            if (-not (Test-Path $path)) { throw "Missing Run #12 asset: $asset" }
+            if (-not (Test-Path $path)) { throw "Missing asset: $asset" }
             $img = [System.Drawing.Bitmap]::FromFile($path)
             try {
-              if ($img.GetPixel(0,0).A -ne 0 -or $img.GetPixel($img.Width-1,$img.Height-1).A -ne 0) {
-                throw "$asset outer corners are not transparent."
-              }
+              if ($img.GetPixel(0,0).A -ne 0 -or $img.GetPixel($img.Width-1,$img.Height-1).A -ne 0) { throw "$asset outer corners are not transparent." }
             } finally { $img.Dispose() }
           }
 
-      - name: Pack MSIX 3.7.2.2
+      - name: Pack MSIX 3.7.2.3
         shell: powershell
         run: |
           $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $makeappx) { throw 'makeappx.exe not found' }
-          & $makeappx pack /d dist\msix-stage /p dist\HypeTek-Bookmarker-v3.7.2.2-Store-Test.msix /o
+          & $makeappx pack /d dist\msix-stage /p dist\HypeTek-Bookmarker-v3.7.2.3-Store-Test.msix /o
           if ($LASTEXITCODE -ne 0) { throw "MakeAppx failed: $LASTEXITCODE" }
 
       - name: Sign and verify MSIX with ephemeral development certificate
@@ -220,10 +215,10 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath dist\HypeTek-Bookmarker-Store-Test.pfx -Password $password | Out-Null
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           if (-not $signtool) { throw 'signtool.exe not found' }
-          & $signtool sign /fd SHA256 /f dist\HypeTek-Bookmarker-Store-Test.pfx /p $passwordText /v dist\HypeTek-Bookmarker-v3.7.2.2-Store-Test.msix
+          & $signtool sign /fd SHA256 /f dist\HypeTek-Bookmarker-Store-Test.pfx /p $passwordText /v dist\HypeTek-Bookmarker-v3.7.2.3-Store-Test.msix
           if ($LASTEXITCODE -ne 0) { throw "SignTool failed: $LASTEXITCODE" }
           Import-Certificate -FilePath dist\HypeTek-Bookmarker-Store-Test.cer -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
-          & $signtool verify /pa /v dist\HypeTek-Bookmarker-v3.7.2.2-Store-Test.msix
+          & $signtool verify /pa /v dist\HypeTek-Bookmarker-v3.7.2.3-Store-Test.msix
           if ($LASTEXITCODE -ne 0) { throw "Signature verification failed: $LASTEXITCODE" }
           Remove-Item dist\HypeTek-Bookmarker-Store-Test.pfx -Force
           Copy-Item store\Install-StoreTest.ps1 dist\Install-StoreTest.ps1
@@ -236,7 +231,7 @@ jobs:
         with:
           name: HypeTek-Bookmarker-Store-Test
           path: |
-            dist/HypeTek-Bookmarker-v3.7.2.2-Store-Test.msix
+            dist/HypeTek-Bookmarker-v3.7.2.3-Store-Test.msix
             dist/HypeTek-Bookmarker-Store-Test.cer
             dist/Install-StoreTest.ps1
             dist/Run-WackLocal.ps1
