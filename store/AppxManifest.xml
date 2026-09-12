@@ -9,7 +9,7 @@
   <Identity
     Name="HypeTek.Bookmarker.Dev"
     Publisher="CN=HypeTek Development"
-    Version="3.7.2.2"
+    Version="3.7.2.3"
     ProcessorArchitecture="x64" />
 
   <Properties>
